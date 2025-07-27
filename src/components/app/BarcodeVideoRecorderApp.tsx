@@ -4,6 +4,7 @@ import { VideoDisplay } from '../video';
 import { RecordingControls } from '../recording';
 import { SettingsModal } from '../settings';
 import { StatusIndicator, NotificationSystem } from '../ui';
+import { BarcodeDetectionTester } from '../ui';
 import { RendererConfigService } from '../../services/RendererConfigService';
 import { VideoStreamManager } from '../../services/VideoStreamManager';
 import { BarcodeDetectionService } from '../../services/BarcodeDetectionService';
@@ -39,6 +40,9 @@ const BarcodeVideoRecorderApp: React.FC = () => {
     lastDetectedBarcode: null,
     showSettings: false,
   });
+
+  // Debug state
+  const [showDebugTester, setShowDebugTester] = useState(false);
 
   // Service instances
   const configService = useRef(new RendererConfigService());
@@ -141,32 +145,54 @@ const BarcodeVideoRecorderApp: React.FC = () => {
   };
 
   const initializeBarcodeDetection = () => {
+    console.log('🎯 BarcodeVideoRecorderApp: Initializing barcode detection...');
     const videoElement = videoDisplayRef.current?.getVideoElement();
-    if (!videoElement) return;
+    
+    if (!videoElement) {
+      console.error('❌ BarcodeVideoRecorderApp: No video element available for barcode detection');
+      return;
+    }
+
+    console.log('📹 BarcodeVideoRecorderApp: Video element found:', {
+      readyState: videoElement.readyState,
+      videoWidth: videoElement.videoWidth,
+      videoHeight: videoElement.videoHeight,
+      paused: videoElement.paused,
+      srcObject: !!videoElement.srcObject
+    });
 
     try {
+      console.log('📝 BarcodeVideoRecorderApp: Registering barcode callback');
       barcodeService.current.onBarcodeDetected(handleBarcodeDetected);
+      
+      console.log('🚀 BarcodeVideoRecorderApp: Starting detection');
       barcodeService.current.startDetection(videoElement);
+      
+      console.log('✅ BarcodeVideoRecorderApp: Barcode detection initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize barcode detection:', error);
+      console.error('❌ BarcodeVideoRecorderApp: Failed to initialize barcode detection:', error);
       showError('Failed to initialize barcode detection.');
     }
   };
 
   const handleBarcodeDetected = async (barcode: string) => {
+    console.log(`🎯 BarcodeVideoRecorderApp: Barcode detected: "${barcode}"`);
+    
     try {
       setState(prev => ({ ...prev, lastDetectedBarcode: barcode }));
 
       // If currently recording, stop and save current recording
       if (state.isRecording) {
+        console.log('🛑 BarcodeVideoRecorderApp: Stopping current recording due to new barcode');
         await stopCurrentRecording();
       }
 
       // Start new recording with detected barcode
+      console.log('▶️ BarcodeVideoRecorderApp: Starting new recording');
       await startRecording(barcode);
 
     } catch (error) {
-      console.error('Error handling barcode detection:', error);
+      console.error('❌ BarcodeVideoRecorderApp: Error handling barcode detection:', error);
       showError('Failed to process barcode detection.');
     }
   };
@@ -364,8 +390,15 @@ const BarcodeVideoRecorderApp: React.FC = () => {
 
         <div className="header-right">
           <button
+            className="neo-button neo-button--secondary"
+            onClick={() => setShowDebugTester(!showDebugTester)}
+          >
+            🔍 {showDebugTester ? 'Hide' : 'Debug'} Barcode Detection
+          </button>
+          <button
             className="neo-button neo-button--info"
             onClick={handleOpenSettings}
+            style={{ marginLeft: '10px' }}
           >
             ⚙️ Settings
           </button>
@@ -382,6 +415,15 @@ const BarcodeVideoRecorderApp: React.FC = () => {
           ref={videoDisplayRef}
         />
       </div>
+
+      {/* Debug Tester */}
+      {showDebugTester && (
+        <div className="barcode-app__debug" style={{ margin: '20px 0' }}>
+          <BarcodeDetectionTester 
+            videoElement={videoDisplayRef.current?.getVideoElement() || null}
+          />
+        </div>
+      )}
 
       {/* Recording controls */}
       <div className="barcode-app__controls">

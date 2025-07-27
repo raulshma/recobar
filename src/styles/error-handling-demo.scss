@@ -1,5 +1,5 @@
 // Error handling demo styles
-@import './neobrutalism.scss';
+@use './neobrutalism.scss';
 
 .error-handling-demo {
   @extend .neo-container;

@@ -1,5 +1,5 @@
 // Status display styles with neobrutalism design
-@import './neobrutalism.scss';
+@use './neobrutalism.scss';
 
 .neo-status-display {
   display: flex;
@@ -69,7 +69,7 @@
   &__indicator {
     // Size-specific styles for indicators within display
     &--small {
-      @extend .neo-status-indicator--small;
+      @extend .neo-status-indicator--small !optional;
     }
 
     &--medium {
@@ -77,7 +77,7 @@
     }
 
     &--large {
-      @extend .neo-status-indicator--large;
+      @extend .neo-status-indicator--large !optional;
     }
   }
 
@@ -120,8 +120,10 @@
     }
   }
 
-  // Responsive adjustments
+  // Responsive behavior for smaller screens
   @media (max-width: 768px) {
+    gap: 8px;
+
     &--horizontal {
       flex-direction: column;
       align-items: flex-start;
@@ -130,8 +132,6 @@
     &--grid {
       grid-template-columns: 1fr;
     }
-
-    gap: 8px;
 
     &--large {
       gap: 12px;
@@ -155,7 +155,7 @@
 .neo-status-display--compact {
   .neo-status-display__item {
     .neo-status-indicator {
-      @extend .neo-status-indicator--compact;
+      @extend .neo-status-indicator--compact !optional;
     }
   }
 
@@ -175,7 +175,7 @@
 
 // Status display with background panel
 .neo-status-display--panel {
-  @extend .neo-base;
+  @extend .neo-base !optional;
   padding: 16px;
   background: var(--neo-white);
   margin: 8px 0;

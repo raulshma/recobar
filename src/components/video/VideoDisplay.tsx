@@ -42,13 +42,35 @@ const VideoDisplay = forwardRef<VideoDisplayRef, VideoDisplayProps>(({
   // Barcode detection functions
   const startBarcodeDetection = () => {
     const videoElement = videoRef.current;
+    console.log('🎬 VideoDisplay: Starting barcode detection...');
+    console.log('📹 Video element:', videoElement);
+    console.log('🔘 Enable barcode detection:', enableBarcodeDetection);
+    console.log('📞 OnBarcodeDetected callback:', !!onBarcodeDetectedRef.current);
+    
     if (!videoElement || !enableBarcodeDetection || !onBarcodeDetectedRef.current) {
+      console.warn('⚠️ VideoDisplay: Cannot start barcode detection - missing requirements');
+      console.log('   - Video element:', !!videoElement);
+      console.log('   - Enable detection:', enableBarcodeDetection);
+      console.log('   - Has callback:', !!onBarcodeDetectedRef.current);
       return;
+    }
+
+    // Additional video element checks
+    if (videoElement.readyState < 2) {
+      console.warn('⚠️ VideoDisplay: Video element not ready, readyState:', videoElement.readyState);
+    }
+    
+    if (videoElement.videoWidth === 0 || videoElement.videoHeight === 0) {
+      console.warn('⚠️ VideoDisplay: Video dimensions are zero:', {
+        width: videoElement.videoWidth,
+        height: videoElement.videoHeight
+      });
     }
 
     try {
       // Initialize barcode detection service if not already done
       if (!barcodeServiceRef.current) {
+        console.log('🆕 VideoDisplay: Creating new BarcodeDetectionService');
         barcodeServiceRef.current = new BarcodeDetectionService();
       }
 
@@ -56,6 +78,7 @@ const VideoDisplay = forwardRef<VideoDisplayRef, VideoDisplayProps>(({
 
       // Set up barcode detection callback
       const handleBarcodeDetected = (barcode: string) => {
+        console.log(`🎯 VideoDisplay: Barcode detected in component: "${barcode}"`);
         setLastDetectedBarcode(barcode);
         onBarcodeDetectedRef.current?.(barcode);
 
@@ -65,11 +88,16 @@ const VideoDisplay = forwardRef<VideoDisplayRef, VideoDisplayProps>(({
         }, 3000);
       };
 
+      console.log('📝 VideoDisplay: Registering barcode callback');
       service.onBarcodeDetected(handleBarcodeDetected);
+      
+      console.log('🚀 VideoDisplay: Starting detection service');
       service.startDetection(videoElement);
       setBarcodeDetectionActive(true);
+      
+      console.log('✅ VideoDisplay: Barcode detection setup complete');
     } catch (error) {
-      console.error('Failed to start barcode detection:', error);
+      console.error('❌ VideoDisplay: Failed to start barcode detection:', error);
       const errorMsg = 'Failed to initialize barcode detection';
       setError(errorMsg);
       onErrorRef.current?.(errorMsg);
