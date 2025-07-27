@@ -171,8 +171,14 @@ if (!contextBridge) {
 
 // Validate that we're running in a secure context - check for main world pollution
 // In a properly isolated preload script, we shouldn't have access to renderer globals
+// Note: In development mode, this warning may appear due to webpack hot reloading
 if (typeof document !== 'undefined' || typeof window !== 'undefined') {
-  console.warn('Preload script may have access to renderer globals - ensure proper context isolation');
+  if (process.env.NODE_ENV === 'development') {
+    // This is expected in development due to webpack dev server setup
+    // The warning can be safely ignored in development
+  } else {
+    console.warn('Preload script has access to renderer globals - context isolation may be compromised');
+  }
 }
 
 // Expose the electron API to the renderer process
