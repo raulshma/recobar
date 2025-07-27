@@ -22,6 +22,9 @@ const VideoDisplay = forwardRef<VideoDisplayRef, VideoDisplayProps>(({
     getVideoElement: () => videoRef.current,
   }));
   const barcodeServiceRef = useRef<BarcodeDetectionService | null>(null);
+  const onBarcodeDetectedRef = useRef(onBarcodeDetected);
+  const onErrorRef = useRef(onError);
+  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [videoReady, setVideoReady] = useState(false);
@@ -30,10 +33,16 @@ const VideoDisplay = forwardRef<VideoDisplayRef, VideoDisplayProps>(({
   );
   const [barcodeDetectionActive, setBarcodeDetectionActive] = useState(false);
 
+  // Update refs when callbacks change
+  useEffect(() => {
+    onBarcodeDetectedRef.current = onBarcodeDetected;
+    onErrorRef.current = onError;
+  }, [onBarcodeDetected, onError]);
+
   // Barcode detection functions
   const startBarcodeDetection = () => {
     const videoElement = videoRef.current;
-    if (!videoElement || !enableBarcodeDetection || !onBarcodeDetected) {
+    if (!videoElement || !enableBarcodeDetection || !onBarcodeDetectedRef.current) {
       return;
     }
 
@@ -48,7 +57,7 @@ const VideoDisplay = forwardRef<VideoDisplayRef, VideoDisplayProps>(({
       // Set up barcode detection callback
       const handleBarcodeDetected = (barcode: string) => {
         setLastDetectedBarcode(barcode);
-        onBarcodeDetected(barcode);
+        onBarcodeDetectedRef.current?.(barcode);
 
         // Clear the detected barcode after 3 seconds for visual feedback
         setTimeout(() => {
@@ -63,7 +72,7 @@ const VideoDisplay = forwardRef<VideoDisplayRef, VideoDisplayProps>(({
       console.error('Failed to start barcode detection:', error);
       const errorMsg = 'Failed to initialize barcode detection';
       setError(errorMsg);
-      onError?.(errorMsg);
+      onErrorRef.current?.(errorMsg);
     }
   };
 
@@ -95,11 +104,11 @@ const VideoDisplay = forwardRef<VideoDisplayRef, VideoDisplayProps>(({
           console.error('Error playing video:', err);
           const errorMsg = 'Failed to play video stream';
           setError(errorMsg);
-          onError?.(errorMsg);
+          onErrorRef.current?.(errorMsg);
         });
 
         // Start barcode detection if enabled
-        if (enableBarcodeDetection && onBarcodeDetected) {
+        if (enableBarcodeDetection && onBarcodeDetectedRef.current) {
           startBarcodeDetection();
         }
       };
@@ -109,7 +118,7 @@ const VideoDisplay = forwardRef<VideoDisplayRef, VideoDisplayProps>(({
         setError(errorMsg);
         setIsLoading(false);
         setVideoReady(false);
-        onError?.(errorMsg);
+        onErrorRef.current?.(errorMsg);
       };
 
       const handleLoadStart = () => {
@@ -143,13 +152,23 @@ const VideoDisplay = forwardRef<VideoDisplayRef, VideoDisplayProps>(({
         videoElement.pause();
         videoElement.srcObject = null;
       };
+    } else {
+      // No stream provided, clear the video
+      videoElement.srcObject = null;
+      setVideoReady(false);
+      setIsLoading(false);
+      setError(null);
     }
-    // No stream provided, clear the video
-    videoElement.srcObject = null;
-    setVideoReady(false);
-    setIsLoading(false);
-    setError(null);
-  }, [stream, onError, enableBarcodeDetection, onBarcodeDetected]);
+  }, [stream]); // Simplified dependencies - only track stream changes
+
+  // Separate effect for barcode detection to avoid unnecessary video restarts
+  useEffect(() => {
+    if (videoReady && enableBarcodeDetection && onBarcodeDetectedRef.current) {
+      startBarcodeDetection();
+    } else if (!enableBarcodeDetection) {
+      stopBarcodeDetection();
+    }
+  }, [videoReady, enableBarcodeDetection]); // Remove onBarcodeDetected from deps to prevent restarts
 
   // Cleanup effect for component unmount
   useEffect(() => {

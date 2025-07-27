@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Button from '../ui/Button';
-import { RendererConfigService } from '../../services/RendererConfigService';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { VideoStreamManager } from '../../services/VideoStreamManager';
+import { RendererConfigService } from '../../services/RendererConfigService';
+import Button from '../ui/Button';
 
-interface WebcamSetupProps {
+export interface WebcamSetupProps {
   onComplete: (webcamId: string) => void;
   onBack?: () => void;
 }
@@ -17,16 +17,60 @@ const WebcamSetup: React.FC<WebcamSetupProps> = ({ onComplete, onBack }) => {
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const configService = new RendererConfigService();
-  const videoManager = new VideoStreamManager();
+  // Use useRef to maintain stable service instances
+  const configServiceRef = useRef(new RendererConfigService());
+  const videoManagerRef = useRef(new VideoStreamManager());
+
+  // Use useRef to track if component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+
+  const startPreview = useCallback(async (deviceId: string) => {
+    if (!isMountedRef.current) return;
+    
+    try {
+      setIsPreviewLoading(true);
+      setError('');
+
+      // Stop existing preview
+      if (previewStream) {
+        previewStream.getTracks().forEach((track) => track.stop());
+        setPreviewStream(null);
+      }
+
+      const stream = await videoManagerRef.current.startStream(deviceId);
+      
+      if (isMountedRef.current) {
+        setPreviewStream(stream);
+      } else {
+        // Component unmounted, clean up the stream
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    } catch (error) {
+      console.error('Error starting preview:', error);
+      if (isMountedRef.current) {
+        setError(
+          'Failed to start camera preview. Please try a different camera.',
+        );
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsPreviewLoading(false);
+      }
+    }
+  }, [previewStream]);
 
   const loadDevicesAndExistingConfig = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    
     try {
       setIsLoading(true);
       setError('');
 
       // Load available devices
-      const availableDevices = await videoManager.getAvailableDevices();
+      const availableDevices = await videoManagerRef.current.getAvailableDevices();
+      
+      if (!isMountedRef.current) return;
+      
       setDevices(availableDevices);
 
       if (availableDevices.length === 0) {
@@ -35,7 +79,9 @@ const WebcamSetup: React.FC<WebcamSetupProps> = ({ onComplete, onBack }) => {
       }
 
       // Try to load existing webcam selection
-      const existingWebcamId = await configService.getWebcamId();
+      const existingWebcamId = await configServiceRef.current.getWebcamId();
+
+      if (!isMountedRef.current) return;
 
       if (
         existingWebcamId &&
@@ -51,52 +97,44 @@ const WebcamSetup: React.FC<WebcamSetupProps> = ({ onComplete, onBack }) => {
       }
     } catch (error) {
       console.error('Error loading devices:', error);
-      setError(
-        'Failed to access camera devices. Please check permissions and try again.',
-      );
+      if (isMountedRef.current) {
+        setError(
+          'Failed to access camera devices. Please check permissions and try again.',
+        );
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, [configService, videoManager]);
+  }, [startPreview]);
 
+  // Load devices and config on mount only
   useEffect(() => {
     loadDevicesAndExistingConfig();
+  }, []); // Empty dependency array - only run on mount
 
-    return () => {
-      // Cleanup stream on unmount
-      if (previewStream) {
-        previewStream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [loadDevicesAndExistingConfig, previewStream]);
-
+  // Set video source when stream changes
   useEffect(() => {
     if (videoRef.current && previewStream) {
       videoRef.current.srcObject = previewStream;
     }
   }, [previewStream]);
 
-  const startPreview = async (deviceId: string) => {
-    try {
-      setIsPreviewLoading(true);
-      setError('');
-
-      // Stop existing preview
+  // Cleanup effect on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      
+      // Cleanup stream on unmount
       if (previewStream) {
         previewStream.getTracks().forEach((track) => track.stop());
       }
-
-      const stream = await videoManager.startStream(deviceId);
-      setPreviewStream(stream);
-    } catch (error) {
-      console.error('Error starting preview:', error);
-      setError(
-        'Failed to start camera preview. Please try a different camera.',
-      );
-    } finally {
-      setIsPreviewLoading(false);
-    }
-  };
+      
+      // Cleanup video manager
+      videoManagerRef.current.stopStream();
+    };
+  }, []); // Empty dependency array - only cleanup on unmount
 
   const handleDeviceChange = async (
     e: React.ChangeEvent<HTMLSelectElement>,
@@ -119,18 +157,21 @@ const WebcamSetup: React.FC<WebcamSetupProps> = ({ onComplete, onBack }) => {
 
     try {
       setIsLoading(true);
-      await configService.setWebcamId(selectedDeviceId);
+      await configServiceRef.current.setWebcamId(selectedDeviceId);
 
       // Stop preview stream before completing
       if (previewStream) {
         previewStream.getTracks().forEach((track) => track.stop());
+        setPreviewStream(null);
       }
 
       onComplete(selectedDeviceId);
     } catch (error) {
       console.error('Error saving webcam selection:', error);
-      setError('Failed to save camera selection. Please try again.');
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setError('Failed to save camera selection. Please try again.');
+        setIsLoading(false);
+      }
     }
   };
 
@@ -153,36 +194,37 @@ const WebcamSetup: React.FC<WebcamSetupProps> = ({ onComplete, onBack }) => {
 
   return (
     <div className="neo-container">
-      <div className="neo-card">
-        <div className="neo-text--center">
-          <h1 className="neo-text--xl neo-text--uppercase">Camera Setup</h1>
-          <p className="neo-text--large" style={{ marginBottom: '32px' }}>
-            Select your camera and verify the preview looks good.
+      <div className="neo-card" style={{ maxWidth: '600px', margin: '0 auto' }}>
+        <div className="neo-card__header">
+          <h2 className="neo-heading">Webcam Setup</h2>
+          <p className="neo-text neo-text--muted">
+            Select a camera for video recording
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="neo-form">
-          <div className="neo-form__group">
-            <label htmlFor="webcam-select" className="neo-form__label">
-              Select Camera
-            </label>
-            <select
-              id="webcam-select"
-              className="neo-form__select"
-              value={selectedDeviceId}
-              onChange={handleDeviceChange}
-              disabled={isLoading || devices.length === 0}
-            >
-              <option value="">Choose a camera...</option>
-              {devices.map((device) => (
-                <option key={device.deviceId} value={device.deviceId}>
-                  {getDeviceLabel(device)}
-                </option>
-              ))}
-            </select>
-          </div>
+        <form onSubmit={handleSubmit}>
+          {!isLoading && devices.length > 0 && (
+            <div className="neo-form__group">
+              <label htmlFor="webcam-select" className="neo-form__label">
+                Select Camera
+              </label>
+              <select
+                id="webcam-select"
+                className="neo-form__input"
+                value={selectedDeviceId}
+                onChange={handleDeviceChange}
+                disabled={isLoading}
+              >
+                <option value="">Choose a camera...</option>
+                {devices.map((device) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {device.label || `Camera ${device.deviceId.slice(0, 8)}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-          {/* Camera Preview */}
           {selectedDeviceId && (
             <div className="neo-form__group">
               <label className="neo-form__label">Camera Preview</label>
