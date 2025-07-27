@@ -13,13 +13,10 @@ export class RendererConfigService implements ConfigManager {
 
   async setTenantId(tenantId: string): Promise<void> {
     try {
-      const result = await window.electron.config.setTenantId(tenantId);
-      if (!result.success) {
-        throw new Error('Failed to set tenant ID');
-      }
+      await window.electron.config.setTenantId(tenantId);
     } catch (error) {
-      console.error('Renderer: Error setting tenant ID:', error);
-      throw error;
+      console.error('Failed to set tenant ID:', error);
+      throw new Error('Failed to save tenant ID configuration');
     }
   }
 
@@ -27,20 +24,17 @@ export class RendererConfigService implements ConfigManager {
     try {
       return await window.electron.config.getWebcamId();
     } catch (error) {
-      console.error('Renderer: Error getting webcam ID:', error);
-      throw new Error('Failed to get webcam ID');
+      console.error('Failed to get webcam ID:', error);
+      throw new Error('Failed to load webcam ID configuration');
     }
   }
 
   async setWebcamId(webcamId: string): Promise<void> {
     try {
-      const result = await window.electron.config.setWebcamId(webcamId);
-      if (!result.success) {
-        throw new Error('Failed to set webcam ID');
-      }
+      await window.electron.config.setWebcamId(webcamId);
     } catch (error) {
-      console.error('Renderer: Error setting webcam ID:', error);
-      throw error;
+      console.error('Failed to set webcam ID:', error);
+      throw new Error('Failed to save webcam ID configuration');
     }
   }
 
@@ -48,53 +42,44 @@ export class RendererConfigService implements ConfigManager {
     try {
       return await window.electron.config.getStorageSettings();
     } catch (error) {
-      console.error('Renderer: Error getting storage settings:', error);
-      throw new Error('Failed to get storage settings');
+      console.error('Failed to get storage settings:', error);
+      throw new Error('Failed to load storage settings');
     }
   }
 
   async setStorageSettings(settings: StorageSettings): Promise<void> {
     try {
-      const result = await window.electron.config.setStorageSettings(settings);
-      if (!result.success) {
-        throw new Error('Failed to set storage settings');
-      }
+      await window.electron.config.setStorageSettings(settings);
     } catch (error) {
-      console.error('Renderer: Error setting storage settings:', error);
-      throw error;
+      console.error('Failed to set storage settings:', error);
+      throw new Error('Failed to save storage settings');
     }
   }
 
   async getConfig(): Promise<AppConfig> {
     try {
-      return await window.electron.config.getConfig();
+      return await window.electron.config.get();
     } catch (error) {
-      console.error('Renderer: Error getting config:', error);
-      throw new Error('Failed to get configuration');
+      console.error('Failed to get config:', error);
+      throw new Error('Failed to load configuration');
     }
   }
 
   async setConfig(config: Partial<AppConfig>): Promise<void> {
     try {
-      const result = await window.electron.config.setConfig(config);
-      if (!result.success) {
-        throw new Error('Failed to set configuration');
-      }
+      await window.electron.config.set(config);
     } catch (error) {
-      console.error('Renderer: Error setting config:', error);
-      throw error;
+      console.error('Failed to set config:', error);
+      throw new Error('Failed to save configuration');
     }
   }
 
   async resetConfig(): Promise<void> {
     try {
-      const result = await window.electron.config.resetConfig();
-      if (!result.success) {
-        throw new Error('Failed to reset configuration');
-      }
+      await window.electron.config.reset();
     } catch (error) {
-      console.error('Renderer: Error resetting config:', error);
-      throw error;
+      console.error('Failed to reset config:', error);
+      throw new Error('Failed to reset configuration');
     }
   }
 

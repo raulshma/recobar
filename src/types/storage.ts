@@ -8,6 +8,11 @@ export interface S3Config {
   secretAccessKey: string;
 }
 
+export interface StorageError extends Error {
+  type: 'local' | 's3' | 'validation';
+  originalError?: Error;
+}
+
 export interface StorageResult {
   success: boolean;
   localPath?: string;
@@ -39,17 +44,12 @@ export interface StorageService {
   saveRecording(
     recording: RecordingResult,
     localPath?: string,
-    s3Config?: S3Config
+    s3Config?: S3Config,
   ): Promise<StorageResult>;
   onStatusUpdate(callback: (status: StorageOperationStatus) => void): void;
   removeStatusCallback(callback: (status: StorageOperationStatus) => void): void;
   getStorageStatus(): StorageOperationStatus;
   clearS3Client(): void;
-}
-
-export interface StorageError extends Error {
-  type: 'local' | 's3' | 'validation';
-  originalError?: Error;
 }
 
 // Re-export RecordingResult and RecordingMetadata for convenience

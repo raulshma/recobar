@@ -1,5 +1,6 @@
 // Configuration IPC handlers for secure communication between main and renderer processes
-import { ipcMain } from 'electron';
+import { ipcMain, dialog } from 'electron';
+import { promises as fs } from 'fs';
 import { ConfigManager } from '../services/ConfigManager';
 import { AppConfig, StorageSettings } from '../types/config';
 
@@ -76,7 +77,7 @@ export class ConfigIpcHandlers {
     );
 
     // Full configuration handlers
-    ipcMain.handle('config:getConfig', async () => {
+    ipcMain.handle('config:get', async () => {
       try {
         return await this.configManager.getConfig();
       } catch (error) {
@@ -86,7 +87,7 @@ export class ConfigIpcHandlers {
     });
 
     ipcMain.handle(
-      'config:setConfig',
+      'config:set',
       async (_, config: Partial<AppConfig>) => {
         try {
           await this.configManager.setConfig(config);
@@ -99,7 +100,7 @@ export class ConfigIpcHandlers {
     );
 
     // Utility handlers
-    ipcMain.handle('config:resetConfig', async () => {
+    ipcMain.handle('config:reset', async () => {
       try {
         await this.configManager.resetConfig();
         return { success: true };
@@ -117,6 +118,49 @@ export class ConfigIpcHandlers {
         return true; // Default to first time setup on error
       }
     });
+
+    // Webcam enumeration handler
+    ipcMain.handle('config:getAvailableWebcams', async () => {
+      try {
+        // Use navigator.mediaDevices.enumerateDevices() equivalent in main process
+        // For now, return empty array - this would need platform-specific implementation
+        console.warn('getAvailableWebcams not fully implemented - returning empty array');
+        return [];
+      } catch (error) {
+        console.error('IPC Error getting available webcams:', error);
+        return [];
+      }
+    });
+
+    // Directory selection handler
+    ipcMain.handle('config:selectDirectory', async () => {
+      try {
+        const result = await dialog.showOpenDialog({
+          properties: ['openDirectory'],
+          title: 'Select Storage Directory'
+        });
+        
+        if (result.canceled || result.filePaths.length === 0) {
+          return null;
+        }
+        
+        return result.filePaths[0];
+      } catch (error) {
+        console.error('IPC Error selecting directory:', error);
+        return null;
+      }
+    });
+
+    // Directory validation handler
+    ipcMain.handle('config:validateDirectory', async (_, path: string) => {
+      try {
+        const stats = await fs.stat(path);
+        return stats.isDirectory();
+      } catch (error) {
+        console.error('IPC Error validating directory:', error);
+        return false;
+      }
+    });
   }
 
   // Method to remove all handlers (useful for cleanup)
@@ -128,10 +172,13 @@ export class ConfigIpcHandlers {
       'config:setWebcamId',
       'config:getStorageSettings',
       'config:setStorageSettings',
-      'config:getConfig',
-      'config:setConfig',
-      'config:resetConfig',
+      'config:get',
+      'config:set',
+      'config:reset',
       'config:isFirstTimeSetup',
+      'config:getAvailableWebcams',
+      'config:selectDirectory',
+      'config:validateDirectory',
     ];
 
     handlers.forEach((handler) => {

@@ -1,154 +1,85 @@
-// Hook for integrating ErrorHandler with NotificationSystem
-import { useRef, useEffect, useCallback } from 'react';
-import { ErrorHandler } from '../services/ErrorHandler';
+// Error handling hook that integrates with notification system
+import { useCallback } from 'react';
 import type { NotificationSystemRef } from '../components/ui/NotificationSystem';
-import type { SetupError, RuntimeError, StorageError } from '../types';
-
-export interface UseErrorHandlerOptions {
-  enableLogging?: boolean;
-  maxRetries?: number;
-}
 
 export interface UseErrorHandlerReturn {
-  errorHandler: ErrorHandler;
-  handleSetupError: (error: SetupError) => void;
-  handleRuntimeError: (error: RuntimeError) => void;
-  handleStorageError: (error: StorageError) => void;
   showNotification: (
     message: string,
-    type: 'error' | 'warning' | 'info' | 'success',
+    type?: 'error' | 'warning' | 'info' | 'success',
     options?: {
       persistent?: boolean;
       actionLabel?: string;
       onAction?: () => void;
       duration?: number;
     }
-  ) => string | null;
-  clearAllNotifications: () => void;
-  getErrorStats: () => {
-    total: number;
-    byCategory: Record<string, number>;
-    recentErrors: Array<{ timestamp: Date; message: string; category: string }>;
-  };
-  isSystemHealthy: () => boolean;
-  getRecoverySuggestions: () => string[];
+  ) => void;
+  handleError: (error: Error | unknown, context?: string) => void;
+  handleSuccess: (message: string) => void;
+  handleWarning: (message: string) => void;
+  handleInfo: (message: string) => void;
 }
 
 export const useErrorHandler = (
-  notificationSystemRef: React.RefObject<NotificationSystemRef>,
-  options: UseErrorHandlerOptions = {}
+  notificationSystemRef: React.RefObject<NotificationSystemRef | null>
 ): UseErrorHandlerReturn => {
-  const { enableLogging = true, maxRetries = 3 } = options;
-  const errorHandlerRef = useRef<ErrorHandler | null>(null);
+  const showNotification = useCallback(
+    (
+      message: string,
+      type: 'error' | 'warning' | 'info' | 'success' = 'error',
+      options?: {
+        persistent?: boolean;
+        actionLabel?: string;
+        onAction?: () => void;
+        duration?: number;
+      }
+    ) => {
+      if (notificationSystemRef.current) {
+        notificationSystemRef.current.addNotification(message, type, options);
+      } else {
+        // Fallback to console if notification system is not available
+        console[type === 'error' ? 'error' : type === 'warning' ? 'warn' : 'info'](message);
+      }
+    },
+    [notificationSystemRef]
+  );
 
-  // Initialize ErrorHandler
-  useEffect(() => {
-    if (!errorHandlerRef.current) {
-      errorHandlerRef.current = new ErrorHandler();
-    }
+  const handleError = useCallback(
+    (error: Error | unknown, context?: string) => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const fullMessage = context ? `${context}: ${errorMessage}` : errorMessage;
+      
+      console.error('Error:', error);
+      showNotification(fullMessage, 'error', { persistent: true });
+    },
+    [showNotification]
+  );
 
-    const errorHandler = errorHandlerRef.current;
+  const handleSuccess = useCallback(
+    (message: string) => {
+      showNotification(message, 'success');
+    },
+    [showNotification]
+  );
 
-    // Set up notification callback when notification system is available
-    if (notificationSystemRef.current) {
-      errorHandler.setNotificationCallback((message, type, options) => {
-        return notificationSystemRef.current?.addNotification(message, type, options) || null;
-      });
-    }
+  const handleWarning = useCallback(
+    (message: string) => {
+      showNotification(message, 'warning');
+    },
+    [showNotification]
+  );
 
-    return () => {
-      // Cleanup if needed
-      errorHandler.clearErrorLog();
-    };
-  }, [notificationSystemRef]);
-
-  // Update notification callback when ref changes
-  useEffect(() => {
-    if (errorHandlerRef.current && notificationSystemRef.current) {
-      errorHandlerRef.current.setNotificationCallback((message, type, options) => {
-        return notificationSystemRef.current?.addNotification(message, type, options) || null;
-      });
-    }
-  }, [notificationSystemRef.current]);
-
-  const handleSetupError = useCallback((error: SetupError) => {
-    if (errorHandlerRef.current) {
-      errorHandlerRef.current.handleSetupError(error);
-    }
-
-    if (enableLogging) {
-      console.error('Setup Error:', error);
-    }
-  }, [enableLogging]);
-
-  const handleRuntimeError = useCallback((error: RuntimeError) => {
-    if (errorHandlerRef.current) {
-      errorHandlerRef.current.handleRuntimeError(error);
-    }
-
-    if (enableLogging) {
-      console.error('Runtime Error:', error);
-    }
-  }, [enableLogging]);
-
-  const handleStorageError = useCallback((error: StorageError) => {
-    if (errorHandlerRef.current) {
-      errorHandlerRef.current.handleStorageError(error);
-    }
-
-    if (enableLogging) {
-      console.error('Storage Error:', error);
-    }
-  }, [enableLogging]);
-
-  const showNotification = useCallback((
-    message: string,
-    type: 'error' | 'warning' | 'info' | 'success',
-    options?: {
-      persistent?: boolean;
-      actionLabel?: string;
-      onAction?: () => void;
-      duration?: number;
-    }
-  ): string | null => {
-    if (errorHandlerRef.current) {
-      errorHandlerRef.current.showUserNotification(message, type, options);
-    }
-
-    return notificationSystemRef.current?.addNotification(message, type, options) || null;
-  }, [notificationSystemRef]);
-
-  const clearAllNotifications = useCallback(() => {
-    notificationSystemRef.current?.clearAll();
-  }, [notificationSystemRef]);
-
-  const getErrorStats = useCallback(() => {
-    return errorHandlerRef.current?.getErrorStats() || {
-      total: 0,
-      byCategory: {},
-      recentErrors: [],
-    };
-  }, []);
-
-  const isSystemHealthy = useCallback(() => {
-    return errorHandlerRef.current?.isSystemHealthy() || true;
-  }, []);
-
-  const getRecoverySuggestions = useCallback(() => {
-    return errorHandlerRef.current?.getRecoverySuggestions() || [];
-  }, []);
+  const handleInfo = useCallback(
+    (message: string) => {
+      showNotification(message, 'info');
+    },
+    [showNotification]
+  );
 
   return {
-    errorHandler: errorHandlerRef.current!,
-    handleSetupError,
-    handleRuntimeError,
-    handleStorageError,
     showNotification,
-    clearAllNotifications,
-    getErrorStats,
-    isSystemHealthy,
-    getRecoverySuggestions,
+    handleError,
+    handleSuccess,
+    handleWarning,
+    handleInfo,
   };
 };
-
-export default useErrorHandler;

@@ -9,6 +9,7 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
+import { promises as fs } from 'fs';
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
@@ -52,6 +53,75 @@ ipcMain.handle('app:isPackaged', () => {
 
 ipcMain.handle('app:getPath', (_, name: string) => {
   return app.getPath(name as any);
+});
+
+// File system IPC handlers
+ipcMain.handle('fs:exists', async (_, filePath: string) => {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle('fs:isDirectory', async (_, filePath: string) => {
+  try {
+    const stats = await fs.stat(filePath);
+    return stats.isDirectory();
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle('fs:createDirectory', async (_, dirPath: string) => {
+  try {
+    await fs.mkdir(dirPath, { recursive: true });
+  } catch (error) {
+    console.error('Error creating directory:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('fs:readFile', async (_, filePath: string) => {
+  try {
+    return await fs.readFile(filePath);
+  } catch (error) {
+    console.error('Error reading file:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('fs:writeFile', async (_, filePath: string, data: Buffer) => {
+  try {
+    await fs.writeFile(filePath, data);
+  } catch (error) {
+    console.error('Error writing file:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('fs:deleteFile', async (_, filePath: string) => {
+  try {
+    await fs.unlink(filePath);
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('fs:getStats', async (_, filePath: string) => {
+  try {
+    const stats = await fs.stat(filePath);
+    return {
+      size: stats.size,
+      isDirectory: stats.isDirectory(),
+      modified: stats.mtime,
+    };
+  } catch (error) {
+    console.error('Error getting file stats:', error);
+    throw error;
+  }
 });
 
 // Window management IPC handlers
@@ -146,7 +216,7 @@ const createWindow = async () => {
         : path.join(__dirname, '../../.erb/dll/preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      enableRemoteModule: false,
+
       webSecurity: true,
     },
   });

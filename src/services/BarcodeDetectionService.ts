@@ -9,6 +9,10 @@ type BarcodeResult = {
     confidence: number;
     format: string;
   };
+  line?: Array<{ x: number; y: number }>;
+  angle?: number;
+  pattern?: number[]; // QuaggaJS pattern is an array of numbers representing bar widths
+  threshold?: number;
 };
 
 export class BarcodeDetectionService implements IBarcodeDetectionService {
@@ -17,6 +21,10 @@ export class BarcodeDetectionService implements IBarcodeDetectionService {
   private detectionCallbacks: ((barcode: string) => void)[] = [];
 
   private videoElement: HTMLVideoElement | null = null;
+
+  private lastDetectedBarcode: string | null = null;
+  private lastDetectionTime: number = 0;
+  private readonly DEBOUNCE_TIME = 1000; // 1 second debounce
 
   startDetection(videoElement: HTMLVideoElement): void {
     console.log('🔍 Starting barcode detection...');
@@ -63,7 +71,7 @@ export class BarcodeDetectionService implements IBarcodeDetectionService {
     console.log('🎯 Video readyState:', videoElement.readyState);
     console.log('▶️ Video paused:', videoElement.paused);
 
-    // Configure Quagga for barcode detection
+    // SIMPLIFIED configuration for better compatibility
     const config = {
       inputStream: {
         name: 'Live',
@@ -77,24 +85,32 @@ export class BarcodeDetectionService implements IBarcodeDetectionService {
       },
       locator: {
         patchSize: 'medium',
-        halfSample: true,
+        halfSample: true, // Enable half sampling for better performance
       },
-      numOfWorkers: 2,
-      frequency: 10, // Process every 10th frame for performance
+      numOfWorkers: 2, // Reduce workers for stability
+      frequency: 10, // Process every 10th frame for better performance
       decoder: {
         readers: [
+          // More inclusive set of readers
           'code_128_reader',
           'ean_reader',
           'ean_8_reader',
+          'upc_reader',
+          'upc_e_reader',
           'code_39_reader',
           'code_39_vin_reader',
           'codabar_reader',
-          'upc_reader',
-          'upc_e_reader',
           'i2of5_reader',
         ],
+        multiple: false, // Only detect one barcode at a time
       },
       locate: true,
+      debug: {
+        drawBoundingBox: false, // Disable debug drawing for better performance
+        showFrequency: false,
+        drawScanline: false,
+        showPattern: false
+      }
     };
 
     // Create a safe version of config for logging (without the video element)
@@ -157,7 +173,7 @@ export class BarcodeDetectionService implements IBarcodeDetectionService {
   }
 
   private handleBarcodeDetected(result: BarcodeResult): void {
-    console.log('🔍 Barcode detection result:', result);
+    console.log('🔍 RAW Barcode detection result:', result);
     
     if (!this.isDetectionActive || !result || !result.codeResult) {
       console.log('⚠️ Detection not active or invalid result');
@@ -165,29 +181,51 @@ export class BarcodeDetectionService implements IBarcodeDetectionService {
     }
 
     const barcode = result.codeResult.code;
-    const confidence = result.codeResult.confidence || 0;
+    const confidence = result.codeResult.confidence;
     const format = result.codeResult.format;
+    const currentTime = Date.now();
 
-    console.log(`📊 Barcode detected: "${barcode}" (confidence: ${confidence}%, format: ${format})`);
+    console.log(`📊 Barcode detected: "${barcode}" (confidence: ${confidence !== undefined ? confidence.toFixed(1) + '%' : 'undefined'}, format: ${format})`);
 
-    // Temporarily lower confidence threshold for debugging
-    const confidenceThreshold = 50; // Lowered from 75 for testing
-    
-    if (confidence > confidenceThreshold) {
-      console.log(`✅ Barcode confidence (${confidence}%) above threshold (${confidenceThreshold}%), notifying callbacks`);
-      
-      // Notify all registered callbacks
-      this.detectionCallbacks.forEach((callback, index) => {
-        try {
-          console.log(`📞 Calling callback ${index + 1}/${this.detectionCallbacks.length}`);
-          callback(barcode);
-        } catch (error) {
-          console.error(`❌ Error in barcode detection callback ${index}:`, error);
-        }
-      });
-    } else {
-      console.log(`⚠️ Barcode confidence (${confidence}%) below threshold (${confidenceThreshold}%), ignoring`);
+    // Service-level debouncing
+    if (this.lastDetectedBarcode === barcode && 
+        (currentTime - this.lastDetectionTime) < this.DEBOUNCE_TIME) {
+      console.log(`🚫 Ignoring duplicate barcode detection within debounce period`);
+      return;
     }
+
+    // SIMPLIFIED validation with much lower threshold
+    const confidenceThreshold = 30; // Much lower threshold for testing
+    
+    // Basic barcode validation
+    if (!barcode || barcode.length < 3) {
+      console.log('⚠️ Barcode too short or empty, ignoring');
+      return;
+    }
+
+    // If confidence is available and too low, skip
+    if (confidence !== undefined && confidence !== null && confidence < confidenceThreshold) {
+      console.log(`⚠️ Barcode confidence (${confidence.toFixed(1)}%) below threshold (${confidenceThreshold}%), ignoring`);
+      return;
+    }
+
+    // Accept the barcode with minimal validation
+    console.log(`✅ Barcode accepted: "${barcode}" - notifying callbacks`);
+    this.lastDetectedBarcode = barcode;
+    this.lastDetectionTime = currentTime;
+    this.notifyCallbacks(barcode);
+  }
+
+  private notifyCallbacks(barcode: string): void {
+    // Notify all registered callbacks
+    this.detectionCallbacks.forEach((callback, index) => {
+      try {
+        console.log(`📞 Calling callback ${index + 1}/${this.detectionCallbacks.length} with barcode: "${barcode}"`);
+        callback(barcode);
+      } catch (error) {
+        console.error(`❌ Error in barcode detection callback ${index}:`, error);
+      }
+    });
   }
 
   // Additional utility methods

@@ -1,44 +1,37 @@
-// UI and application state-related type definitions
-import type { VideoState } from './video';
-import type { RecordingState } from './recording';
-import type { BarcodeState } from './barcode';
-import type { StorageError } from './storage';
+// UI-related type definitions
 
-export interface SetupState {
-  isComplete: boolean;
-  currentStep: 'tenant' | 'webcam' | 'complete';
+export interface StatusItem {
+  id: string;
+  status: 'ready' | 'recording' | 'paused' | 'error' | 'warning';
+  message: string;
+  priority: 'low' | 'medium' | 'high';
+  timestamp?: Date;
 }
 
-export interface UIState {
-  showSettings: boolean;
-  showControls: boolean;
-}
-
-export interface AppState {
-  setup: SetupState;
-  video: VideoState;
-  recording: RecordingState;
-  barcode: BarcodeState;
-  ui: UIState;
-}
-
-export interface ErrorHandler {
-  handleSetupError(error: SetupError): void;
-  handleRuntimeError(error: RuntimeError): void;
-  handleStorageError(error: StorageError): void;
-  showUserNotification(
-    message: string,
-    type: 'error' | 'warning' | 'info' | 'success',
-  ): void;
-}
-
+// Error type definitions
 export interface SetupError extends Error {
+  code: 'TENANT_ID_MISSING' | 'WEBCAM_NOT_FOUND' | 'STORAGE_CONFIG_INVALID';
   type: 'tenant' | 'webcam' | 'permission';
+  context?: Record<string, unknown>;
 }
 
 export interface RuntimeError extends Error {
+  code: 'RECORDING_FAILED' | 'BARCODE_DETECTION_FAILED' | 'STREAM_LOST';
   type: 'webcam' | 'barcode' | 'recording';
+  context?: Record<string, unknown>;
 }
 
-// Re-export StorageError for convenience
-export type { StorageError };
+// Error handler interface
+export interface ErrorHandler {
+  handleSetupError(error: SetupError): void;
+  handleRuntimeError(error: RuntimeError): void;
+  showUserNotification(
+    message: string,
+    type: 'error' | 'warning' | 'info' | 'success',
+    options?: {
+      persistent?: boolean;
+      actionLabel?: string;
+      onAction?: () => void;
+    },
+  ): void;
+}

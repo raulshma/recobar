@@ -8,6 +8,7 @@ import {
   StorageResult,
   StorageOperationStatus,
 } from '../types';
+import { SerializedRecordingData } from '../types/recording';
 
 export class RendererStorageService implements IStorageService {
   private statusCallbacks: ((status: StorageOperationStatus) => void)[] = [];
@@ -61,7 +62,15 @@ export class RendererStorageService implements IStorageService {
         );
       }
 
-      const result = await window.electron.storage.saveLocal(recording, localPath);
+      // Serialize blob for IPC transport
+      const blobBuffer = await recording.blob.arrayBuffer();
+      const recordingData: SerializedRecordingData = {
+        metadata: recording.metadata,
+        blobBuffer: Array.from(new Uint8Array(blobBuffer)),
+        blobType: recording.blob.type
+      };
+
+      const result = await window.electron.storage.saveLocal(recordingData, localPath);
       if (!result.success || !result.filePath) {
         throw new Error('Failed to save recording locally');
       }
@@ -92,7 +101,15 @@ export class RendererStorageService implements IStorageService {
         );
       }
 
-      const result = await window.electron.storage.uploadToS3(recording, config);
+      // Serialize blob for IPC transport
+      const blobBuffer = await recording.blob.arrayBuffer();
+      const recordingData: SerializedRecordingData = {
+        metadata: recording.metadata,
+        blobBuffer: Array.from(new Uint8Array(blobBuffer)),
+        blobType: recording.blob.type
+      };
+
+      const result = await window.electron.storage.uploadToS3(recordingData, config);
       if (!result.success || !result.s3Url) {
         throw new Error('Failed to upload recording to S3');
       }

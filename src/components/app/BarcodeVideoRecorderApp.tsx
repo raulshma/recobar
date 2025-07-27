@@ -3,11 +3,10 @@ import { SetupWizard } from '../setup';
 import { VideoDisplay } from '../video';
 import { RecordingControls } from '../recording';
 import { SettingsModal } from '../settings';
-import { StatusIndicator, NotificationSystem } from '../ui';
+import { StatusIndicator, NotificationSystem, NotificationSystemRef } from '../ui';
 import { BarcodeDetectionTester } from '../ui';
 import { RendererConfigService } from '../../services/RendererConfigService';
 import { VideoStreamManager } from '../../services/VideoStreamManager';
-import { BarcodeDetectionService } from '../../services/BarcodeDetectionService';
 import { RecordingManager } from '../../services/RecordingManager';
 import { RendererStorageService } from '../../services/RendererStorageService';
 import { ErrorHandler } from '../../services/ErrorHandler';
@@ -47,16 +46,18 @@ const BarcodeVideoRecorderApp: React.FC = () => {
   // Service instances
   const configService = useRef(new RendererConfigService());
   const videoManager = useRef(new VideoStreamManager());
-  const barcodeService = useRef(new BarcodeDetectionService());
   const recordingManager = useRef(new RecordingManager());
   const storageService = useRef(new RendererStorageService());
   const errorHandler = useRef(new ErrorHandler());
+
+  // Current video stream ref - use ref instead of state for real-time access
+  const currentVideoStreamRef = useRef<MediaStream | null>(null);
 
   // Video display ref for barcode detection
   const videoDisplayRef = useRef<{ getVideoElement: () => HTMLVideoElement | null }>(null);
 
   // Notification system ref
-  const notificationSystemRef = useRef<any>(null);
+  const notificationSystemRef = useRef<NotificationSystemRef | null>(null);
 
   // Error handling hook
   const { showNotification } = useErrorHandler(notificationSystemRef);
@@ -129,14 +130,12 @@ const BarcodeVideoRecorderApp: React.FC = () => {
   const initializeVideoStream = async (webcamId: string) => {
     try {
       const stream = await videoManager.current.startStream(webcamId);
+      
+      // Store in both state and ref
       setState(prev => ({ ...prev, videoStream: stream }));
+      currentVideoStreamRef.current = stream;
 
-      // Initialize barcode detection when video is ready
-      setTimeout(() => {
-        if (videoDisplayRef.current && stream) {
-          initializeBarcodeDetection();
-        }
-      }, 1000);
+      // Barcode detection will be handled by VideoDisplay component
 
     } catch (error) {
       console.error('Failed to initialize video stream:', error);
@@ -144,41 +143,33 @@ const BarcodeVideoRecorderApp: React.FC = () => {
     }
   };
 
-  const initializeBarcodeDetection = () => {
-    console.log('🎯 BarcodeVideoRecorderApp: Initializing barcode detection...');
-    const videoElement = videoDisplayRef.current?.getVideoElement();
-    
-    if (!videoElement) {
-      console.error('❌ BarcodeVideoRecorderApp: No video element available for barcode detection');
-      return;
-    }
 
-    console.log('📹 BarcodeVideoRecorderApp: Video element found:', {
-      readyState: videoElement.readyState,
-      videoWidth: videoElement.videoWidth,
-      videoHeight: videoElement.videoHeight,
-      paused: videoElement.paused,
-      srcObject: !!videoElement.srcObject
-    });
 
-    try {
-      console.log('📝 BarcodeVideoRecorderApp: Registering barcode callback');
-      barcodeService.current.onBarcodeDetected(handleBarcodeDetected);
-      
-      console.log('🚀 BarcodeVideoRecorderApp: Starting detection');
-      barcodeService.current.startDetection(videoElement);
-      
-      console.log('✅ BarcodeVideoRecorderApp: Barcode detection initialized successfully');
-    } catch (error) {
-      console.error('❌ BarcodeVideoRecorderApp: Failed to initialize barcode detection:', error);
-      showError('Failed to initialize barcode detection.');
-    }
-  };
+  // Debouncing for barcode detection
+  const lastBarcodeRef = useRef<string | null>(null);
+  const barcodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleBarcodeDetected = async (barcode: string) => {
     console.log(`🎯 BarcodeVideoRecorderApp: Barcode detected: "${barcode}"`);
     
     try {
+      // Debounce rapid detections of the same barcode
+      if (lastBarcodeRef.current === barcode) {
+        console.log('🚫 BarcodeVideoRecorderApp: Ignoring duplicate barcode detection');
+        return;
+      }
+
+      // Clear any existing timeout
+      if (barcodeTimeoutRef.current) {
+        clearTimeout(barcodeTimeoutRef.current);
+      }
+
+      // Set debounce timeout
+      barcodeTimeoutRef.current = setTimeout(() => {
+        lastBarcodeRef.current = null;
+      }, 2000); // Reset after 2 seconds
+
+      lastBarcodeRef.current = barcode;
       setState(prev => ({ ...prev, lastDetectedBarcode: barcode }));
 
       // If currently recording, stop and save current recording
@@ -198,12 +189,23 @@ const BarcodeVideoRecorderApp: React.FC = () => {
   };
 
   const startRecording = async (barcode: string) => {
-    if (!state.videoStream) {
+    // Use ref instead of state to get current stream
+    const currentStream = currentVideoStreamRef.current;
+    
+    console.log('🎬 BarcodeVideoRecorderApp: Attempting to start recording', {
+      hasVideoStream: !!currentStream,
+      streamActive: currentStream?.active,
+      videoTracks: currentStream?.getVideoTracks().length,
+      audioTracks: currentStream?.getAudioTracks().length
+    });
+
+    if (!currentStream || !currentStream.active) {
+      console.error('❌ BarcodeVideoRecorderApp: No active video stream for recording');
       throw new Error('No video stream available for recording');
     }
 
     try {
-      await recordingManager.current.startRecording(state.videoStream, barcode);
+      await recordingManager.current.startRecording(currentStream, barcode);
       setState(prev => ({
         ...prev,
         isRecording: true,
@@ -320,6 +322,7 @@ const BarcodeVideoRecorderApp: React.FC = () => {
       if (state.config?.webcamId !== newConfig.webcamId) {
         // Stop current stream and start new one
         videoManager.current.stopStream();
+        currentVideoStreamRef.current = null; // Clear the ref
         await initializeVideoStream(newConfig.webcamId);
       }
 
@@ -331,9 +334,17 @@ const BarcodeVideoRecorderApp: React.FC = () => {
   };
 
   const cleanup = () => {
+    // Clear any pending timeouts
+    if (barcodeTimeoutRef.current) {
+      clearTimeout(barcodeTimeoutRef.current);
+    }
+    
+    // Clear video stream ref
+    currentVideoStreamRef.current = null;
+    
     // Stop all services
     videoManager.current.stopStream();
-    barcodeService.current.stopDetection();
+    
     if (state.isRecording) {
       recordingManager.current.stopRecording().catch(console.error);
     }

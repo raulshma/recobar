@@ -1,70 +1,73 @@
 // Type definitions for the preload API exposed to the renderer process
 import { AppConfig, StorageSettings } from './config';
-import { RecordingResult } from './recording';
+import { RecordingMetadata, RecordingStatistics, RecordingFilters, SerializedRecordingData } from './recording';
+
+// Define available webcam device interface
+interface WebcamDevice {
+  deviceId: string;
+  label: string;
+  kind: string;
+}
 
 export interface ElectronAPI {
-  ipcRenderer: {
-    sendMessage(channel: string, ...args: unknown[]): void;
-    on(channel: string, func: (...args: unknown[]) => void): () => void;
-    once(channel: string, func: (...args: unknown[]) => void): void;
-    invoke(channel: string, ...args: unknown[]): Promise<unknown>;
-  };
+  // App version info
+  getVersion(): Promise<string>;
 
-  app: {
-    getVersion(): Promise<string>;
-    getPlatform(): Promise<string>;
-    isPackaged(): Promise<boolean>;
-    getPath(name: string): Promise<string>;
-  };
-
-  window: {
-    minimize(): Promise<void>;
-    maximize(): Promise<void>;
-    close(): Promise<void>;
-    setFullScreen(fullscreen: boolean): Promise<void>;
-    isFullScreen(): Promise<boolean>;
-  };
-
+  // Config API
   config: {
-    getTenantId(): Promise<string | null>;
-    setTenantId(tenantId: string): Promise<{ success: boolean }>;
-    getWebcamId(): Promise<string | null>;
-    setWebcamId(webcamId: string): Promise<{ success: boolean }>;
-    getStorageSettings(): Promise<StorageSettings>;
-    setStorageSettings(settings: StorageSettings): Promise<{ success: boolean }>;
-    getConfig(): Promise<AppConfig>;
-    setConfig(config: Partial<AppConfig>): Promise<{ success: boolean }>;
-    resetConfig(): Promise<{ success: boolean }>;
+    get(): Promise<AppConfig>;
+    set(config: Partial<AppConfig>): Promise<void>;
+    reset(): Promise<void>;
     isFirstTimeSetup(): Promise<boolean>;
+    
+    // Tenant management
+    getTenantId(): Promise<string | null>;
+    setTenantId(tenantId: string): Promise<void>;
+    
+    // Webcam management
+    getWebcamId(): Promise<string | null>;
+    setWebcamId(webcamId: string): Promise<void>;
+    getAvailableWebcams(): Promise<WebcamDevice[]>;
+    
+    // Storage settings
+    getStorageSettings(): Promise<StorageSettings>;
+    setStorageSettings(settings: StorageSettings): Promise<void>;
+    
+    // Directory operations
+    selectDirectory(): Promise<string | null>;
+    validateDirectory(path: string): Promise<boolean>;
   };
 
+  // File system operations
+  fs: {
+    exists(path: string): Promise<boolean>;
+    isDirectory(path: string): Promise<boolean>;
+    createDirectory(path: string): Promise<void>;
+    readFile(path: string): Promise<Buffer>;
+    writeFile(path: string, data: Buffer): Promise<void>;
+    deleteFile(path: string): Promise<void>;
+    getStats(path: string): Promise<{ size: number; isDirectory: boolean; modified: Date }>;
+  };
+
+  // Storage API
   storage: {
-    saveLocal(recording: RecordingResult, path: string): Promise<{ success: boolean; filePath?: string }>;
-    uploadToS3(recording: RecordingResult, config: StorageSettings['s3']): Promise<{ success: boolean; s3Url?: string }>;
-    generateFileName(metadata: RecordingResult['metadata']): Promise<{ success: boolean; fileName?: string }>;
+    saveLocal(recordingData: SerializedRecordingData, path: string): Promise<{ success: boolean; filePath?: string }>;
+    uploadToS3(recordingData: SerializedRecordingData, config: StorageSettings['s3Config']): Promise<{ success: boolean; s3Url?: string }>;
+    generateFileName(metadata: RecordingMetadata): Promise<{ success: boolean; fileName?: string }>;
     validateConfig(settings: StorageSettings): Promise<{ success: boolean; isValid: boolean; error?: string }>;
-    testS3Connection(config: StorageSettings['s3']): Promise<{ success: boolean; isConnected: boolean; error?: string }>;
+    testS3Connection(config: StorageSettings['s3Config']): Promise<{ success: boolean; isConnected: boolean; error?: string }>;
     getAvailableSpace(path: string): Promise<{ success: boolean; availableSpace: number; error?: string }>;
   };
 
+  // Recording API
   recording: {
-    getMetadata(recordingId: string): Promise<{ success: boolean; metadata?: any }>;
-    listRecordings(filters?: any): Promise<{ success: boolean; recordings: any[] }>;
+    getMetadata(recordingId: string): Promise<{ success: boolean; metadata?: RecordingMetadata }>;
+    listRecordings(filters?: RecordingFilters): Promise<{ success: boolean; recordings: RecordingMetadata[] }>;
     deleteRecording(recordingId: string): Promise<{ success: boolean }>;
     getStatistics(): Promise<{
       success: boolean;
-      statistics: {
-        totalRecordings: number;
-        totalDuration: number;
-        totalSize: number;
-        lastRecording: any;
-      }
+      statistics: RecordingStatistics;
     }>;
-    exportRecording(recordingId: string, exportPath: string): Promise<{ success: boolean; exportPath?: string }>;
-  };
-
-  notification: {
-    show(options: { title: string; body: string }): Promise<void>;
   };
 }
 

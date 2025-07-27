@@ -3,7 +3,7 @@ import React, { useRef, useState } from 'react';
 import NotificationSystem, { NotificationSystemRef } from './NotificationSystem';
 import StatusDisplay, { StatusItem } from './StatusDisplay';
 import StatusIndicator from './StatusIndicator';
-import useErrorHandler from '../../hooks/useErrorHandler';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { ErrorHandler } from '../../services/ErrorHandler';
 import type { SetupError, RuntimeError, StorageError } from '../../types';
 import '../../styles/error-handling-demo.scss';
@@ -20,14 +20,11 @@ export const ErrorHandlingDemo: React.FC = () => {
   ]);
 
   const {
-    handleSetupError,
-    handleRuntimeError,
-    handleStorageError,
     showNotification,
-    clearAllNotifications,
-    getErrorStats,
-    isSystemHealthy,
-    getRecoverySuggestions,
+    handleError,
+    handleSuccess,
+    handleWarning,
+    handleInfo,
   } = useErrorHandler(notificationRef);
 
   const updateStatus = (id: string, status: StatusItem['status'], message: string, priority?: StatusItem['priority']) => {
@@ -55,7 +52,7 @@ export const ErrorHandlingDemo: React.FC = () => {
       type,
       `Demo ${type} setup error occurred`
     );
-    handleSetupError(error);
+    handleError(error);
     updateStatus('setup', 'error', `Setup Error: ${type}`, 'high');
   };
 
@@ -64,14 +61,14 @@ export const ErrorHandlingDemo: React.FC = () => {
       type,
       `Demo ${type} runtime error occurred`
     );
-    handleRuntimeError(error);
+    handleError(error);
     updateStatus('runtime', 'error', `Runtime Error: ${type}`, 'high');
   };
 
   const triggerStorageError = (type: 'local' | 's3' | 'validation') => {
     const storageError = new Error(`Demo ${type} storage error occurred`) as StorageError;
     storageError.type = type;
-    handleStorageError(storageError);
+    handleError(storageError);
     updateStatus('storage', 'error', `Storage Error: ${type}`, 'high');
   };
 
@@ -87,7 +84,7 @@ export const ErrorHandlingDemo: React.FC = () => {
 
     setTimeout(() => {
       updateStatus('recording', 'recording', 'Recording in progress', 'medium');
-      showNotification('Recording started', 'info', { pulse: true });
+      showNotification('Recording started', 'info');
     }, 2000);
 
     setTimeout(() => {
@@ -109,9 +106,9 @@ export const ErrorHandlingDemo: React.FC = () => {
   };
 
   const showSystemHealth = () => {
-    const healthy = isSystemHealthy();
-    const stats = getErrorStats();
-    const suggestions = getRecoverySuggestions();
+    const healthy = true; // Simplified for demo
+    const stats = { total: 0, byCategory: {}, recentErrors: [] }; // Mock stats
+    const suggestions: string[] = []; // Mock suggestions
 
     showNotification(
       `System Health: ${healthy ? 'Good' : 'Issues Detected'}`,
@@ -244,7 +241,7 @@ export const ErrorHandlingDemo: React.FC = () => {
             </button>
             <button
               className="neo-button"
-              onClick={clearAllNotifications}
+              onClick={() => notificationRef.current?.clearAll()}
             >
               Clear Notifications
             </button>
