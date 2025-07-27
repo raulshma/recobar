@@ -75,11 +75,18 @@ export class VideoStreamManager implements IVideoStreamManager {
       const constraints: MediaStreamConstraints = {
         video: {
           deviceId: deviceId ? { exact: deviceId } : undefined,
-          width: { ideal: 1280, min: 640 },
-          height: { ideal: 720, min: 480 },
-          frameRate: { ideal: 30, min: 15 },
+          width: { ideal: 1280, min: 640, max: 1280 }, // Limit max width for performance
+          height: { ideal: 720, min: 480, max: 720 },   // Limit max height for performance
+          frameRate: { ideal: 24, min: 15, max: 30 },   // Reduced frame rate for better performance
+          aspectRatio: { ideal: 16/9 },
         },
-        audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: { ideal: 22050 }, // Reduced sample rate for better performance
+          channelCount: { ideal: 1 },   // Mono audio for smaller file size
+        },
       };
 
       this.currentStream =

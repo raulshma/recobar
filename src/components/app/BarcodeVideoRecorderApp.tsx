@@ -249,17 +249,32 @@ const BarcodeVideoRecorderApp: React.FC = () => {
     try {
       const storageSettings = state.config.storage;
 
-      // Save locally if configured
-      if (storageSettings.local.enabled) {
-        await storageService.current.saveLocal(recording, storageSettings.local.path);
-      }
+      // Process storage operations in background to avoid blocking UI
+      const processStorage = async () => {
+        try {
+          // Save locally if configured
+          if (storageSettings.local.enabled) {
+            await storageService.current.saveLocal(recording, storageSettings.local.path);
+          }
 
-      // Upload to S3 if configured
-      if (storageSettings.s3.enabled) {
-        await storageService.current.uploadToS3(recording, storageSettings.s3);
-      }
+          // Upload to S3 if configured
+          if (storageSettings.s3.enabled) {
+            await storageService.current.uploadToS3(recording, storageSettings.s3);
+          }
 
-      showSuccess('Recording saved successfully');
+          showSuccess('Recording saved successfully');
+        } catch (error) {
+          console.error('Failed to save recording:', error);
+          showError('Failed to save recording. Check storage configuration.');
+        }
+      };
+
+      // Use requestIdleCallback if available, otherwise use setTimeout
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(() => processStorage());
+      } else {
+        setTimeout(() => processStorage(), 0);
+      }
 
     } catch (error) {
       console.error('Failed to save recording:', error);

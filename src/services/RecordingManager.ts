@@ -1,9 +1,7 @@
-// Recording management service implementation
-import {
-  RecordingManager as IRecordingManager,
-  RecordingResult,
-  RecordingMetadata,
-} from '../types';
+// Recording management service with performance optimizations
+import { RecordingManager as IRecordingManager, RecordingResult, RecordingMetadata } from '../types';
+import { PerformanceMonitor } from './PerformanceMonitor';
+import { BlobProcessorService } from './BlobProcessorService';
 
 export class RecordingManager implements IRecordingManager {
   private mediaRecorder: MediaRecorder | null = null;
@@ -15,9 +13,15 @@ export class RecordingManager implements IRecordingManager {
   private isPausedState: boolean = false;
   private tenantId: string = '';
   private webcamId: string = '';
+  private maxChunkSize: number = 50 * 1024 * 1024; // 50MB max memory usage
+  private chunkCleanupInterval: NodeJS.Timeout | null = null;
+  private performanceMonitor: PerformanceMonitor;
+  private blobProcessor: BlobProcessorService;
 
   constructor() {
-    // Initialize with default values - these will be set when recording starts
+    this.loadConfiguration();
+    this.performanceMonitor = new PerformanceMonitor();
+    this.blobProcessor = new BlobProcessorService({ maxWorkerCount: 2 });
   }
 
   async startRecording(stream: MediaStream, barcode: string): Promise<void> {
@@ -37,19 +41,22 @@ export class RecordingManager implements IRecordingManager {
       this.isRecordingActive = true;
       this.isPausedState = false;
 
-      // Create MediaRecorder with appropriate options
+      // Create MediaRecorder with optimized options for performance
       const options: MediaRecorderOptions = {
         mimeType: this.getSupportedMimeType(),
-        videoBitsPerSecond: 2500000, // 2.5 Mbps for good quality
-        audioBitsPerSecond: 128000,  // 128 kbps for audio
+        videoBitsPerSecond: 1000000, // Reduced to 1 Mbps for better performance
+        audioBitsPerSecond: 64000,   // Reduced to 64 kbps for audio
       };
 
       this.mediaRecorder = new MediaRecorder(stream, options);
 
-      // Set up event handlers
+      // Set up event handlers with memory management
       this.mediaRecorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
           this.recordedChunks.push(event.data);
+          
+          // Memory management: limit total chunk size
+          this.manageMemoryUsage();
         }
       };
 
@@ -60,15 +67,24 @@ export class RecordingManager implements IRecordingManager {
 
       this.mediaRecorder.onstop = () => {
         console.log('MediaRecorder stopped');
+        this.cleanupChunkCleanup();
       };
 
-      // Start recording
-      this.mediaRecorder.start(1000); // Collect data every second
+      // Start recording with longer intervals to reduce processing overhead
+      this.mediaRecorder.start(2000); // Collect data every 2 seconds instead of 1
+      
+      // Start memory cleanup interval
+      this.startChunkCleanup();
+      
+      // Start performance monitoring
+      this.performanceMonitor.startRecording();
+      
       console.log(`Recording started for barcode: ${barcode}`);
 
     } catch (error) {
       this.isRecordingActive = false;
       this.isPausedState = false;
+      this.cleanupChunkCleanup();
       throw new Error(`Failed to start recording: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -90,42 +106,17 @@ export class RecordingManager implements IRecordingManager {
           const endTime = new Date();
           const duration = endTime.getTime() - this.startTime!.getTime();
 
-          // Create the recording blob
-          const mimeType = this.mediaRecorder?.mimeType || 'video/webm';
-          const blob = new Blob(this.recordedChunks, { type: mimeType });
-
-          // Get stream resolution
-          const videoTrack = this.currentStream?.getVideoTracks()[0];
-          const settings = videoTrack?.getSettings();
-          const resolution = {
-            width: settings?.width || 1280,
-            height: settings?.height || 720,
-          };
-
-          // Create metadata
-          const metadata: RecordingMetadata = {
-            id: this.generateRecordingId(),
-            tenantId: this.tenantId,
-            barcode: this.currentBarcode || '',
-            startTime: this.startTime!,
-            endTime,
-            duration,
-            webcamId: this.webcamId,
-            resolution,
-            hasAudio: (this.currentStream?.getAudioTracks().length ?? 0) > 0,
-          };
-
-          const result: RecordingResult = {
-            blob,
-            metadata,
-          };
-
-          // Reset state
-          this.resetRecordingState();
-
-          console.log(`Recording stopped. Duration: ${duration}ms, Size: ${blob.size} bytes`);
-          resolve(result);
-
+          // Create the recording blob asynchronously to avoid blocking UI
+          this.createRecordingBlob(duration, endTime)
+            .then(result => {
+              this.resetRecordingState();
+              console.log(`Recording stopped. Duration: ${duration}ms, Size: ${result.blob.size} bytes`);
+              resolve(result);
+            })
+            .catch(error => {
+              this.resetRecordingState();
+              reject(new Error(`Failed to process recording: ${error instanceof Error ? error.message : String(error)}`));
+            });
         } catch (error) {
           this.resetRecordingState();
           reject(new Error(`Failed to process recording: ${error instanceof Error ? error.message : String(error)}`));
@@ -241,5 +232,108 @@ export class RecordingManager implements IRecordingManager {
     this.startTime = null;
     this.isRecordingActive = false;
     this.isPausedState = false;
+  }
+
+  private async createRecordingBlob(duration: number, endTime: Date): Promise<RecordingResult> {
+    // Process blob creation in a background task to avoid blocking UI
+    return new Promise((resolve, reject) => {
+      // Use requestIdleCallback or setTimeout to defer processing
+      const processBlob = async () => {
+        try {
+          const processingStartTime = performance.now();
+          
+          const mimeType = this.mediaRecorder?.mimeType || 'video/webm';
+          const blob = new Blob(this.recordedChunks, { type: mimeType });
+
+          // Use blob processor service for better performance
+          const { blob: processedBlob, processingTime } = await this.blobProcessor.processBlob(blob, mimeType);
+
+          // Get stream resolution
+          const videoTrack = this.currentStream?.getVideoTracks()[0];
+          const settings = videoTrack?.getSettings();
+          const resolution = {
+            width: settings?.width || 1280,
+            height: settings?.height || 720,
+          };
+
+          // Create metadata
+          const metadata: RecordingMetadata = {
+            id: this.generateRecordingId(),
+            tenantId: this.tenantId,
+            barcode: this.currentBarcode || '',
+            startTime: this.startTime!,
+            endTime,
+            duration,
+            webcamId: this.webcamId,
+            resolution,
+            hasAudio: (this.currentStream?.getAudioTracks().length ?? 0) > 0,
+          };
+
+          const result: RecordingResult = {
+            blob: processedBlob,
+            metadata,
+          };
+
+          // Track performance metrics
+          const totalProcessingTime = performance.now() - processingStartTime;
+          this.performanceMonitor.stopRecording(processedBlob.size, totalProcessingTime);
+
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      // Use requestIdleCallback if available, otherwise use setTimeout
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(processBlob);
+      } else {
+        setTimeout(processBlob, 0);
+      }
+    });
+  }
+
+  private manageMemoryUsage(): void {
+    let totalSize = 0;
+    for (let i = this.recordedChunks.length - 1; i >= 0; i--) {
+      totalSize += this.recordedChunks[i].size;
+      if (totalSize > this.maxChunkSize) {
+        // Remove oldest chunks to free memory
+        this.recordedChunks.splice(0, i + 1);
+        console.warn(`Memory management: Removed ${i + 1} old chunks to free memory`);
+        break;
+      }
+    }
+  }
+
+  private startChunkCleanup(): void {
+    // Clean up chunks periodically to prevent memory buildup
+    this.chunkCleanupInterval = setInterval(() => {
+      if (this.isRecordingActive && this.recordedChunks.length > 10) {
+        // Keep only the last 10 chunks to reduce memory usage
+        const chunksToRemove = this.recordedChunks.length - 10;
+        if (chunksToRemove > 0) {
+          this.recordedChunks.splice(0, chunksToRemove);
+          console.log(`Cleaned up ${chunksToRemove} old chunks`);
+        }
+      }
+    }, 10000); // Clean up every 10 seconds
+  }
+
+  private cleanupChunkCleanup(): void {
+    if (this.chunkCleanupInterval) {
+      clearInterval(this.chunkCleanupInterval);
+      this.chunkCleanupInterval = null;
+    }
+  }
+
+  /**
+   * Dispose of resources and clean up
+   */
+  dispose(): void {
+    this.cleanupChunkCleanup();
+    this.performanceMonitor.dispose();
+    this.blobProcessor.dispose();
+    this.resetRecordingState();
   }
 }

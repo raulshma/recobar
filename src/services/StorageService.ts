@@ -156,11 +156,28 @@ export class StorageService implements IStorageService {
   }
 
   /**
-   * Convert Blob to Buffer for file operations
+   * Convert blob to buffer with performance optimizations
    */
   private async blobToBuffer(blob: Blob): Promise<Buffer> {
-    const arrayBuffer = await blob.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    // Use background processing to avoid blocking the main thread
+    return new Promise((resolve, reject) => {
+      const processBlob = async () => {
+        try {
+          const arrayBuffer = await blob.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          resolve(buffer);
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      // Use requestIdleCallback if available, otherwise use setTimeout
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(() => processBlob());
+      } else {
+        setTimeout(() => processBlob(), 0);
+      }
+    });
   }
 
   /**
@@ -448,7 +465,7 @@ export class StorageService implements IStorageService {
   }
 
   /**
-   * Save recording to both local and S3 storage simultaneously
+   * Save recording to both local and S3 storage simultaneously with background processing
    */
   async saveRecording(
     recording: RecordingResult,
@@ -483,69 +500,86 @@ export class StorageService implements IStorageService {
       return result;
     }
 
-    // Create promises for concurrent execution
-    const storagePromises: Promise<void>[] = [];
+    // Process storage operations in background to avoid blocking UI
+    return new Promise((resolve) => {
+      const processStorage = async () => {
+        try {
+          // Create promises for concurrent execution
+          const storagePromises: Promise<void>[] = [];
 
-    // Local storage promise
-    if (localPath) {
-      status.local.inProgress = true;
-      this.notifyStatusUpdate(status);
+          // Local storage promise
+          if (localPath) {
+            status.local.inProgress = true;
+            this.notifyStatusUpdate(status);
 
-      const localPromise = this.saveLocal(recording, localPath)
-        .then(path => {
-          result.localPath = path;
-          status.local.completed = true;
-          status.local.inProgress = false;
-          status.local.path = path;
-          this.notifyStatusUpdate(status);
-        })
-        .catch(error => {
-          const storageError = error as StorageError;
-          result.errors.push(storageError);
-          status.local.error = storageError;
-          status.local.inProgress = false;
-          status.local.completed = false;
-          this.notifyStatusUpdate(status);
-        });
+            const localPromise = this.saveLocal(recording, localPath)
+              .then(path => {
+                result.localPath = path;
+                status.local.completed = true;
+                status.local.inProgress = false;
+                status.local.path = path;
+                this.notifyStatusUpdate(status);
+              })
+              .catch(error => {
+                const storageError = error as StorageError;
+                result.errors.push(storageError);
+                status.local.error = storageError;
+                status.local.inProgress = false;
+                status.local.completed = false;
+                this.notifyStatusUpdate(status);
+              });
 
-      storagePromises.push(localPromise);
-    }
+            storagePromises.push(localPromise);
+          }
 
-    // S3 storage promise
-    if (s3Config) {
-      status.s3.inProgress = true;
-      this.notifyStatusUpdate(status);
+          // S3 storage promise
+          if (s3Config) {
+            status.s3.inProgress = true;
+            this.notifyStatusUpdate(status);
 
-      const s3Promise = this.uploadToS3(recording, s3Config)
-        .then(path => {
-          result.s3Path = path;
-          status.s3.completed = true;
-          status.s3.inProgress = false;
-          status.s3.path = path;
-          this.notifyStatusUpdate(status);
-        })
-        .catch(error => {
-          const storageError = error as StorageError;
-          result.errors.push(storageError);
-          status.s3.error = storageError;
-          status.s3.inProgress = false;
-          status.s3.completed = false;
-          this.notifyStatusUpdate(status);
-        });
+            const s3Promise = this.uploadToS3(recording, s3Config)
+              .then(path => {
+                result.s3Path = path;
+                status.s3.completed = true;
+                status.s3.inProgress = false;
+                status.s3.path = path;
+                this.notifyStatusUpdate(status);
+              })
+              .catch(error => {
+                const storageError = error as StorageError;
+                result.errors.push(storageError);
+                status.s3.error = storageError;
+                status.s3.inProgress = false;
+                status.s3.completed = false;
+                this.notifyStatusUpdate(status);
+              });
 
-      storagePromises.push(s3Promise);
-    }
+            storagePromises.push(s3Promise);
+          }
 
-    // Wait for all storage operations to complete
-    await Promise.allSettled(storagePromises);
+          // Wait for all storage operations to complete
+          await Promise.allSettled(storagePromises);
 
-    // Determine overall success
-    result.success = (
-      (!localPath || result.localPath !== undefined) &&
-      (!s3Config || result.s3Path !== undefined)
-    );
+          // Determine overall success
+          result.success = (
+            (!localPath || result.localPath !== undefined) &&
+            (!s3Config || result.s3Path !== undefined)
+          );
 
-    return result;
+          resolve(result);
+        } catch (error) {
+          console.error('Error in background storage processing:', error);
+          resolve(result);
+        }
+      };
+
+      // Use requestIdleCallback if available, otherwise use setTimeout
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(() => processStorage());
+      } else {
+        setTimeout(() => processStorage(), 0);
+      }
+    });
   }
 
   /**
