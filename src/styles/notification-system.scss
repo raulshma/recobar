@@ -1,0 +1,430 @@
+// Notification system styles with neobrutalism design
+@import './neobrutalism.scss';
+
+.neo-notification-system {
+  position: fixed;
+  z-index: 9999;
+  max-width: 400px;
+  width: 100%;
+  pointer-events: none;
+
+  // Position variants
+  &--top-right {
+    top: 20px;
+    right: 20px;
+  }
+
+  &--top-left {
+    top: 20px;
+    left: 20px;
+  }
+
+  &--bottom-right {
+    bottom: 20px;
+    right: 20px;
+  }
+
+  &--bottom-left {
+    bottom: 20px;
+    left: 20px;
+  }
+
+  &--top-center {
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  &--bottom-center {
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  &__actions {
+    margin-top: 12px;
+    pointer-events: auto;
+  }
+
+  &__clear-all {
+    @extend .neo-button;
+    background: var(--neo-gray-800);
+    color: var(--neo-white);
+    font-size: 12px;
+    padding: 8px 16px;
+    width: 100%;
+    text-align: center;
+
+    &:hover {
+      background: var(--neo-black);
+    }
+  }
+}
+
+.neo-notification {
+  @extend .neo-base;
+  margin-bottom: 12px;
+  padding: 0;
+  background: var(--neo-white);
+  position: relative;
+  overflow: hidden;
+  pointer-events: auto;
+  animation: slideIn 0.3s ease-out;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--neo-shadow-lg);
+  }
+
+  &--clickable {
+    cursor: pointer;
+
+    &:active {
+      transform: translate(1px, 1px);
+      box-shadow: var(--neo-shadow-sm);
+    }
+  }
+
+  &__content {
+    padding: 16px;
+    position: relative;
+    z-index: 2;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  &__icon {
+    font-size: 18px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+  }
+
+  &__type {
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    flex: 1;
+  }
+
+  &__dismiss {
+    background: none;
+    border: none;
+    font-size: 16px;
+    font-weight: 900;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    color: inherit;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+
+    &:hover {
+      opacity: 1;
+    }
+
+    &:active {
+      transform: scale(0.9);
+    }
+  }
+
+  &__message {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
+    margin-bottom: 8px;
+    word-wrap: break-word;
+  }
+
+  &__actions {
+    margin-top: 12px;
+  }
+
+  &__action-btn {
+    @extend .neo-button;
+    font-size: 12px;
+    padding: 6px 12px;
+    background: var(--neo-black);
+    color: var(--neo-white);
+
+    &:hover {
+      background: var(--neo-gray-800);
+    }
+  }
+
+  &__persistent-indicator {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    background: var(--neo-black);
+    color: var(--neo-white);
+    padding: 2px 4px;
+    border: 1px solid var(--neo-black);
+  }
+
+  &__progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: var(--neo-black);
+    animation: progress linear;
+    z-index: 1;
+  }
+
+  // Type-specific styles
+  &--error {
+    border-color: var(--neo-red);
+    box-shadow: 4px 4px 0px var(--neo-red);
+
+    .neo-notification__icon {
+      color: var(--neo-red);
+    }
+
+    .neo-notification__type {
+      color: var(--neo-red);
+    }
+
+    .neo-notification__progress {
+      background: var(--neo-red);
+    }
+
+    &:hover {
+      box-shadow: 6px 6px 0px var(--neo-red);
+    }
+  }
+
+  &--warning {
+    border-color: var(--neo-yellow);
+    box-shadow: 4px 4px 0px var(--neo-yellow);
+    background: var(--neo-yellow);
+
+    .neo-notification__icon {
+      color: var(--neo-black);
+    }
+
+    .neo-notification__type {
+      color: var(--neo-black);
+    }
+
+    .neo-notification__progress {
+      background: var(--neo-black);
+    }
+
+    &:hover {
+      box-shadow: 6px 6px 0px var(--neo-yellow);
+    }
+  }
+
+  &--info {
+    border-color: var(--neo-cyan);
+    box-shadow: 4px 4px 0px var(--neo-cyan);
+
+    .neo-notification__icon {
+      color: var(--neo-cyan);
+    }
+
+    .neo-notification__type {
+      color: var(--neo-cyan);
+    }
+
+    .neo-notification__progress {
+      background: var(--neo-cyan);
+    }
+
+    &:hover {
+      box-shadow: 6px 6px 0px var(--neo-cyan);
+    }
+  }
+
+  &--success {
+    border-color: var(--neo-green);
+    box-shadow: 4px 4px 0px var(--neo-green);
+
+    .neo-notification__icon {
+      color: var(--neo-green);
+    }
+
+    .neo-notification__type {
+      color: var(--neo-green);
+    }
+
+    .neo-notification__progress {
+      background: var(--neo-green);
+    }
+
+    &:hover {
+      box-shadow: 6px 6px 0px var(--neo-green);
+    }
+  }
+}
+
+// Animations
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+// Position-specific slide animations
+.neo-notification-system--top-left .neo-notification,
+.neo-notification-system--bottom-left .neo-notification {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.neo-notification-system--top-center .neo-notification,
+.neo-notification-system--bottom-center .neo-notification {
+  animation: slideInDown 0.3s ease-out;
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .neo-notification-system {
+    max-width: calc(100vw - 40px);
+    left: 20px !important;
+    right: 20px !important;
+    transform: none !important;
+
+    &--top-center,
+    &--bottom-center {
+      left: 20px !important;
+      transform: none !important;
+    }
+  }
+
+  .neo-notification {
+    &__content {
+      padding: 12px;
+    }
+
+    &__message {
+      font-size: 13px;
+    }
+
+    &__action-btn {
+      font-size: 11px;
+      padding: 4px 8px;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .neo-notification-system {
+    max-width: calc(100vw - 20px);
+    left: 10px !important;
+    right: 10px !important;
+  }
+
+  .neo-notification {
+    &__header {
+      gap: 6px;
+    }
+
+    &__icon {
+      font-size: 16px;
+      min-width: 18px;
+    }
+
+    &__type {
+      font-size: 11px;
+    }
+
+    &__message {
+      font-size: 12px;
+    }
+  }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+  .neo-notification {
+    border-width: 4px;
+
+    &--error {
+      background: var(--neo-red);
+      color: var(--neo-white);
+    }
+
+    &--warning {
+      background: var(--neo-yellow);
+      color: var(--neo-black);
+    }
+
+    &--info {
+      background: var(--neo-cyan);
+      color: var(--neo-black);
+    }
+
+    &--success {
+      background: var(--neo-green);
+      color: var(--neo-black);
+    }
+  }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+  .neo-notification {
+    animation: none;
+
+    &:hover {
+      transform: none;
+    }
+
+    &--clickable:active {
+      transform: none;
+    }
+  }
+
+  .neo-notification__progress {
+    animation: none;
+    width: 0;
+  }
+}

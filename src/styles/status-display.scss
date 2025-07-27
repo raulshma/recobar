@@ -1,0 +1,267 @@
+// Status display styles with neobrutalism design
+@import './neobrutalism.scss';
+
+.neo-status-display {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+
+  // Layout variants
+  &--horizontal {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  &--vertical {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  &--grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  // Size variants
+  &--small {
+    gap: 8px;
+  }
+
+  &--medium {
+    gap: 12px;
+  }
+
+  &--large {
+    gap: 16px;
+  }
+
+  &__item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    transition: all 0.2s ease;
+
+    &--clickable {
+      cursor: pointer;
+
+      &:hover {
+        transform: translate(-1px, -1px);
+
+        .neo-status-display__indicator {
+          box-shadow: var(--neo-shadow-lg);
+        }
+      }
+
+      &:active {
+        transform: translate(1px, 1px);
+
+        .neo-status-display__indicator {
+          box-shadow: var(--neo-shadow-sm);
+        }
+      }
+    }
+  }
+
+  &__indicator {
+    // Size-specific styles for indicators within display
+    &--small {
+      @extend .neo-status-indicator--small;
+    }
+
+    &--medium {
+      // Default size, no additional styles needed
+    }
+
+    &--large {
+      @extend .neo-status-indicator--large;
+    }
+  }
+
+  &__timestamp {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--neo-gray-800);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+    opacity: 0.7;
+  }
+
+  &__priority-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 16px;
+    height: 16px;
+    background: var(--neo-red);
+    color: var(--neo-white);
+    border: 2px solid var(--neo-black);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 900;
+    animation: pulse 1.5s infinite;
+    z-index: 10;
+  }
+
+  &__overflow {
+    opacity: 0.7;
+
+    .neo-status-indicator {
+      background: var(--neo-gray-200);
+      color: var(--neo-gray-800);
+      border-color: var(--neo-gray-800);
+    }
+  }
+
+  // Responsive adjustments
+  @media (max-width: 768px) {
+    &--horizontal {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    &--grid {
+      grid-template-columns: 1fr;
+    }
+
+    gap: 8px;
+
+    &--large {
+      gap: 12px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    &__timestamp {
+      font-size: 9px;
+    }
+
+    &__priority-badge {
+      width: 14px;
+      height: 14px;
+      font-size: 9px;
+    }
+  }
+}
+
+// Specialized status display variants
+.neo-status-display--compact {
+  .neo-status-display__item {
+    .neo-status-indicator {
+      @extend .neo-status-indicator--compact;
+    }
+  }
+
+  .neo-status-display__timestamp {
+    display: none;
+  }
+}
+
+.neo-status-display--minimal {
+  gap: 6px;
+
+  .neo-status-display__timestamp,
+  .neo-status-display__priority-badge {
+    display: none;
+  }
+}
+
+// Status display with background panel
+.neo-status-display--panel {
+  @extend .neo-base;
+  padding: 16px;
+  background: var(--neo-white);
+  margin: 8px 0;
+
+  &.neo-status-display--vertical {
+    .neo-status-display__item {
+      width: 100%;
+    }
+  }
+}
+
+// Status display for overlay usage
+.neo-status-display--overlay {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.95);
+  border: var(--neo-border);
+  box-shadow: var(--neo-shadow-lg);
+  padding: 12px;
+  border-radius: 0;
+  backdrop-filter: blur(4px);
+
+  &.neo-status-display--top-right {
+    top: 20px;
+    right: 20px;
+    left: auto;
+  }
+
+  &.neo-status-display--bottom-left {
+    bottom: 20px;
+    top: auto;
+  }
+
+  &.neo-status-display--bottom-right {
+    bottom: 20px;
+    right: 20px;
+    top: auto;
+    left: auto;
+  }
+}
+
+// Animation for status changes
+.neo-status-display__item {
+  animation: statusAppear 0.3s ease-out;
+}
+
+@keyframes statusAppear {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+  .neo-status-display--panel {
+    border-width: 4px;
+    box-shadow: var(--neo-shadow-xl);
+  }
+
+  .neo-status-display__priority-badge {
+    border-width: 3px;
+  }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+  .neo-status-display__item {
+    animation: none;
+
+    &--clickable:hover {
+      transform: none;
+    }
+
+    &--clickable:active {
+      transform: none;
+    }
+  }
+
+  .neo-status-display__priority-badge {
+    animation: none;
+  }
+}

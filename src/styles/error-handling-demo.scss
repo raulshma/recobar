@@ -1,0 +1,173 @@
+// Error handling demo styles
+@import './neobrutalism.scss';
+
+.error-handling-demo {
+  @extend .neo-container;
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+
+  &__header {
+    text-align: center;
+    margin-bottom: 32px;
+
+    h2 {
+      font-size: 32px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin: 0 0 12px 0;
+      color: var(--neo-black);
+    }
+
+    p {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--neo-gray-800);
+      margin: 0;
+    }
+  }
+
+  &__status {
+    @extend .neo-card;
+    margin-bottom: 24px;
+
+    h3 {
+      font-size: 18px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 0 0 16px 0;
+      color: var(--neo-black);
+    }
+  }
+
+  &__controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  &__section {
+    @extend .neo-card;
+
+    h3 {
+      font-size: 16px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 0 0 16px 0;
+      color: var(--neo-black);
+    }
+  }
+
+  &__buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .neo-button {
+      font-size: 14px;
+      padding: 8px 16px;
+      text-align: center;
+    }
+  }
+
+  &__individual-indicators {
+    @extend .neo-card;
+
+    h3 {
+      font-size: 18px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 0 0 16px 0;
+      color: var(--neo-black);
+    }
+  }
+
+  &__indicator-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    align-items: center;
+  }
+
+  // Responsive adjustments
+  @media (max-width: 768px) {
+    padding: 16px;
+
+    &__header {
+      margin-bottom: 24px;
+
+      h2 {
+        font-size: 24px;
+        letter-spacing: 1px;
+      }
+
+      p {
+        font-size: 14px;
+      }
+    }
+
+    &__controls {
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    &__buttons {
+      .neo-button {
+        font-size: 13px;
+        padding: 6px 12px;
+      }
+    }
+
+    &__indicator-grid {
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    padding: 12px;
+
+    &__header {
+      h2 {
+        font-size: 20px;
+      }
+
+      p {
+        font-size: 13px;
+      }
+    }
+
+    &__indicator-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+}
+
+// Demo-specific status display styling
+.error-handling-demo .neo-status-display {
+  background: var(--neo-gray-100);
+  padding: 16px;
+  border: var(--neo-border);
+  box-shadow: var(--neo-shadow-sm);
+}
+
+// Animation for demo interactions
+.error-handling-demo__buttons .neo-button {
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--neo-shadow-lg);
+  }
+
+  &:active {
+    transform: translate(1px, 1px);
+    box-shadow: var(--neo-shadow-sm);
+  }
+}

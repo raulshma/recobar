@@ -1,0 +1,221 @@
+// Recording Controls Component Styles
+@import 'neobrutalism';
+
+.recording-controls {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  pointer-events: none; // Allow clicks to pass through the container
+
+  &__status {
+    pointer-events: auto; // Re-enable pointer events for interactive elements
+
+    .neo-status {
+      font-size: 18px;
+      padding: 12px 24px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      border: var(--neo-border-thick);
+      box-shadow: var(--neo-shadow-lg);
+
+      &--recording {
+        background: var(--neo-red);
+        color: var(--neo-white);
+        animation: recordingPulse 1.5s ease-in-out infinite;
+      }
+
+      &--paused {
+        background: var(--neo-yellow);
+        color: var(--neo-black);
+        animation: pausedBlink 2s ease-in-out infinite;
+      }
+    }
+  }
+
+  &__buttons {
+    display: flex;
+    gap: 16px;
+    pointer-events: auto; // Re-enable pointer events for interactive elements
+  }
+
+  &__button {
+    font-size: 18px;
+    padding: 16px 32px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border: var(--neo-border-thick);
+    box-shadow: var(--neo-shadow-lg);
+    cursor: pointer;
+    transition: all 0.1s ease;
+    min-width: 140px;
+
+    &:hover:not(:disabled) {
+      transform: translate(-3px, -3px);
+      box-shadow: var(--neo-shadow-xl);
+    }
+
+    &:active:not(:disabled) {
+      transform: translate(3px, 3px);
+      box-shadow: var(--neo-shadow-sm);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: var(--neo-shadow-md);
+    }
+
+    // Specific button styling
+    &.neo-button--info {
+      background: var(--neo-cyan);
+      color: var(--neo-black);
+
+      &:hover:not(:disabled) {
+        background: #00e6e6; // Slightly darker cyan
+      }
+    }
+
+    &.neo-button--success {
+      background: var(--neo-green);
+      color: var(--neo-black);
+
+      &:hover:not(:disabled) {
+        background: #00e600; // Slightly darker green
+      }
+    }
+
+    &.neo-button--danger {
+      background: var(--neo-red);
+      color: var(--neo-white);
+
+      &:hover:not(:disabled) {
+        background: #e60000; // Slightly darker red
+      }
+    }
+  }
+}
+
+// Animations
+@keyframes recordingPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes pausedBlink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .recording-controls {
+    bottom: 20px;
+
+    &__status .neo-status {
+      font-size: 16px;
+      padding: 10px 20px;
+      letter-spacing: 1px;
+    }
+
+    &__button {
+      font-size: 16px;
+      padding: 14px 24px;
+      letter-spacing: 1px;
+      min-width: 120px;
+    }
+
+    &__buttons {
+      gap: 12px;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .recording-controls {
+    bottom: 16px;
+
+    &__buttons {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    &__button {
+      font-size: 14px;
+      padding: 12px 20px;
+      min-width: 100px;
+    }
+  }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+  .recording-controls {
+    &__status .neo-status {
+      border: var(--neo-border-thick);
+
+      &--recording {
+        background: #ff0000;
+        color: #ffffff;
+      }
+
+      &--paused {
+        background: #ffff00;
+        color: #000000;
+      }
+    }
+
+    &__button {
+      border: var(--neo-border-thick);
+    }
+  }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+  .recording-controls {
+    &__status .neo-status {
+      animation: none;
+
+      &--recording {
+        opacity: 1;
+      }
+
+      &--paused {
+        opacity: 1;
+      }
+    }
+
+    &__button {
+      transition: none;
+
+      &:hover:not(:disabled) {
+        transform: none;
+        box-shadow: var(--neo-shadow-lg);
+      }
+
+      &:active:not(:disabled) {
+        transform: none;
+        box-shadow: var(--neo-shadow-md);
+      }
+    }
+  }
+}

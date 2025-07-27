@@ -1,0 +1,343 @@
+// Main application styles with neobrutalism design
+@import './neobrutalism.scss';
+
+.barcode-app {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--neo-black);
+  font-family: 'Arial Black', Arial, sans-serif;
+
+  // Loading state
+  &--loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--neo-white);
+
+    .loading-spinner {
+      width: 60px;
+      height: 60px;
+      border: 6px solid var(--neo-gray-300);
+      border-top: 6px solid var(--neo-yellow);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 24px;
+    }
+  }
+
+  // Setup state
+  &--setup {
+    background: var(--neo-white);
+    overflow-y: auto;
+  }
+
+  // Main application state
+  &--main {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  // Header section
+  &__header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 20px;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.8) 0%,
+      rgba(0, 0, 0, 0.4) 50%,
+      transparent 100%
+    );
+
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .header-right {
+      display: flex;
+      gap: 12px;
+    }
+  }
+
+  // Video section
+  &__video {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+
+    // Ensure video takes full space
+    .video-display {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      border: none;
+      box-shadow: none;
+
+      .video-container {
+        width: 100%;
+        height: 100%;
+      }
+
+      .video-element {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: none;
+        box-shadow: none;
+      }
+    }
+  }
+
+  // Controls section
+  &__controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .barcode-app {
+    &__header {
+      padding: 16px;
+      flex-direction: column;
+      gap: 12px;
+      align-items: stretch;
+
+      .header-left,
+      .header-right {
+        justify-content: center;
+      }
+    }
+
+    &__controls {
+      bottom: 16px;
+      left: 16px;
+      right: 16px;
+      transform: none;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .barcode-app {
+    &__header {
+      padding: 12px;
+
+      .header-left {
+        .neo-status {
+          font-size: 12px;
+          padding: 6px 12px;
+        }
+      }
+
+      .header-right {
+        .neo-button {
+          font-size: 14px;
+          padding: 8px 16px;
+        }
+      }
+    }
+  }
+}
+
+// Smooth transitions between views
+.barcode-app {
+  transition: all 0.3s ease-in-out;
+
+  &--setup {
+    animation: slideInFromLeft 0.5s ease-out;
+  }
+
+  &--main {
+    animation: slideInFromRight 0.5s ease-out;
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// Status indicators in header
+.barcode-app__header {
+  .neo-status {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95);
+    border: var(--neo-border);
+    box-shadow: var(--neo-shadow-md);
+
+    &--recording {
+      background: rgba(255, 0, 0, 0.95);
+      color: var(--neo-white);
+      animation: pulse 1s infinite;
+    }
+
+    &--paused {
+      background: rgba(255, 255, 0, 0.95);
+      color: var(--neo-black);
+    }
+
+    &--ready {
+      background: rgba(0, 255, 0, 0.95);
+      color: var(--neo-black);
+    }
+  }
+
+  .neo-button {
+    backdrop-filter: blur(10px);
+    background: rgba(0, 255, 255, 0.95);
+
+    &:hover {
+      background: rgba(0, 255, 255, 1);
+    }
+  }
+}
+
+// Enhanced visual feedback
+.barcode-app--main {
+  .barcode-detected-flash {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 255, 0, 0.3);
+    z-index: 50;
+    animation: flash 0.5s ease-out;
+    pointer-events: none;
+  }
+}
+
+@keyframes flash {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+// Recording indicator overlay
+.recording-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 75;
+  pointer-events: none;
+
+  .recording-pulse {
+    width: 100px;
+    height: 100px;
+    border: 8px solid var(--neo-red);
+    border-radius: 50%;
+    animation: recordingPulse 2s infinite;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 0, 0, 0.1);
+
+    .recording-dot {
+      width: 20px;
+      height: 20px;
+      background: var(--neo-red);
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+  }
+}
+
+@keyframes recordingPulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// Error states
+.barcode-app {
+  &__error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 200;
+    background: var(--neo-white);
+    border: var(--neo-border-thick);
+    box-shadow: var(--neo-shadow-xl);
+    padding: 32px;
+    text-align: center;
+    max-width: 500px;
+    width: 90%;
+
+    .error-title {
+      font-size: 24px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--neo-red);
+      margin: 0 0 16px 0;
+    }
+
+    .error-message {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 0 0 24px 0;
+      line-height: 1.4;
+    }
+
+    .error-actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+  }
+}
