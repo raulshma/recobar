@@ -1,15 +1,6 @@
 // Comprehensive unit tests for BarcodeDetectionService
 import { BarcodeDetectionService } from '../services/BarcodeDetectionService';
 
-// Mock QuaggaJS
-jest.mock('quagga', () => ({
-  init: jest.fn(),
-  start: jest.fn(),
-  stop: jest.fn(),
-  onDetected: jest.fn(),
-  offDetected: jest.fn(),
-}));
-
 // Get the mocked module
 const mockQuagga = require('quagga');
 

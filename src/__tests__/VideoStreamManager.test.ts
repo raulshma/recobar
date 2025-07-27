@@ -98,6 +98,18 @@ describe('VideoStreamManager', () => {
     mockAudioTrack = new MockMediaStreamTrack('audio');
     mockStream = new MockMediaStream([mockVideoTrack, mockAudioTrack]);
 
+    // Setup default successful getUserMedia mock
+    mockGetUserMedia.mockResolvedValue(mockStream);
+    mockEnumerateDevices.mockResolvedValue([
+      {
+        deviceId: 'camera1',
+        kind: 'videoinput',
+        label: 'Camera 1',
+        groupId: 'group1',
+        toJSON: () => ({}),
+      },
+    ]);
+
     // Create new instance
     videoStreamManager = new VideoStreamManager();
   });
@@ -328,11 +340,11 @@ describe('VideoStreamManager', () => {
       );
     });
 
-    it('should stop stream and clean up tracks', () => {
+    it('should stop stream and clean up tracks', async () => {
       mockGetUserMedia.mockResolvedValue(mockStream);
 
       // Start stream first
-      videoStreamManager.startStream('camera1');
+      await videoStreamManager.startStream('camera1');
 
       const videoStopSpy = jest.spyOn(mockVideoTrack, 'stop');
       const audioStopSpy = jest.spyOn(mockAudioTrack, 'stop');

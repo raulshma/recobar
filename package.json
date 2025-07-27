@@ -88,6 +88,9 @@
     "setupFiles": [
       "./.erb/scripts/check-build-exists.ts"
     ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/src/setupTests.ts"
+    ],
     "testEnvironment": "jsdom",
     "testEnvironmentOptions": {
       "url": "http://localhost/"

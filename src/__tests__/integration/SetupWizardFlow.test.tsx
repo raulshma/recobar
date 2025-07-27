@@ -6,16 +6,7 @@ import SetupWizard from '../../components/setup/SetupWizard';
 import { ConfigManager } from '../../services/ConfigManager';
 import { VideoStreamManager } from '../../services/VideoStreamManager';
 
-// Mock electron-store
-jest.mock('electron-store', () => {
-  return jest.fn().mockImplementation(() => ({
-    get: jest.fn(),
-    set: jest.fn(),
-    has: jest.fn(),
-    delete: jest.fn(),
-    clear: jest.fn(),
-  }));
-});
+// Note: electron-store is mocked inside the describe block for this test
 
 // Mock MediaStream
 class MockMediaStream {
@@ -70,7 +61,19 @@ Object.defineProperty(global.navigator, 'mediaDevices', {
   },
 });
 
+// Mock electron-store for this test file
+jest.mock('electron-store', () => {
+  return jest.fn().mockImplementation(() => ({
+    get: jest.fn(),
+    set: jest.fn(),
+    has: jest.fn(),
+    delete: jest.fn(),
+    clear: jest.fn(),
+  }));
+});
+
 describe('Setup Wizard Flow Integration', () => {
+
   let mockConfigManager: jest.Mocked<ConfigManager>;
   let mockVideoStreamManager: jest.Mocked<VideoStreamManager>;
 

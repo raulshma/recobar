@@ -122,20 +122,12 @@ class MockMediaStream {
   dispatchEvent(): boolean { return true; }
 }
 
-// Mock window.electron API
+// window.electron is already mocked in setupTests.ts
+// Get references to the mock functions for test setup  
 const mockElectronConfig = {
-  getTenantId: jest.fn(),
-  getWebcamId: jest.fn(),
+  getTenantId: window.electron.config.getTenantId as jest.MockedFunction<typeof window.electron.config.getTenantId>,
+  getWebcamId: window.electron.config.getWebcamId as jest.MockedFunction<typeof window.electron.config.getWebcamId>,
 };
-
-Object.defineProperty(global, 'window', {
-  value: {
-    electron: {
-      config: mockElectronConfig,
-    },
-  },
-  writable: true,
-});
 
 // Setup global mocks
 (global as any).MediaRecorder = MockMediaRecorder;

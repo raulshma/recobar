@@ -94,12 +94,13 @@ describe('StorageService', () => {
     // Setup default fs mocks
     mockFs.stat.mockResolvedValue({
       isDirectory: () => true,
-      size: 1024,
+      size: 15, // Match the expected blob size
     } as any);
     mockFs.mkdir.mockResolvedValue(undefined);
     mockFs.writeFile.mockResolvedValue(undefined);
     mockFs.rename.mockResolvedValue(undefined);
-    mockFs.access.mockResolvedValue(undefined);
+    // Mock fs.access to throw ENOENT by default (file doesn't exist)
+    mockFs.access.mockRejectedValue({ code: 'ENOENT' });
     mockFs.unlink.mockResolvedValue(undefined);
 
     // Setup default S3 mocks
@@ -203,9 +204,18 @@ describe('StorageService', () => {
     });
 
     it('should throw error if path exists but is not a directory', async () => {
+      // Mock stat to return a file (not directory) for the main path check
       mockFs.stat.mockResolvedValueOnce({
         isDirectory: () => false,
       } as any);
+      
+      // But still throw ENOENT for the write test file check
+      mockFs.access.mockImplementation((filePath: any) => {
+        if (typeof filePath === 'string' && filePath.includes('.write-test-')) {
+          throw { code: 'ENOENT' };
+        }
+        throw { code: 'ENOENT' };
+      });
 
       await expect(
         storageService.saveLocal(mockRecording, tempDir)

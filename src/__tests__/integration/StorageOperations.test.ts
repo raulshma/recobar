@@ -167,12 +167,13 @@ describe('Storage Operations Integration', () => {
     // Setup default fs mocks
     mockFs.stat.mockResolvedValue({
       isDirectory: () => true,
-      size: 1024,
+      size: 15, // Match the expected blob size
     } as any);
     mockFs.mkdir.mockResolvedValue(undefined);
     mockFs.writeFile.mockResolvedValue(undefined);
     mockFs.rename.mockResolvedValue(undefined);
-    mockFs.access.mockResolvedValue(undefined);
+    // Mock fs.access to throw ENOENT by default (file doesn't exist)
+    mockFs.access.mockRejectedValue({ code: 'ENOENT' });
     mockFs.unlink.mockResolvedValue(undefined);
 
     // Setup default S3 mocks

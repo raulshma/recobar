@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import VideoDisplay from '../components/video/VideoDisplay';
 
@@ -172,7 +172,9 @@ describe('VideoDisplay', () => {
 
       if (barcodeCallback) {
         // Simulate barcode detection
-        barcodeCallback('123456789');
+        await act(async () => {
+          barcodeCallback('123456789');
+        });
         expect(mockOnBarcodeDetected).toHaveBeenCalledWith('123456789');
       }
     });
