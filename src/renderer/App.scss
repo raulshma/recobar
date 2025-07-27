@@ -4,7 +4,7 @@
  */
 
 /* Import neobrutalism styles */
-@import '../styles/neobrutalism.scss';
+@use '../styles/neobrutalism.scss';
 
 body {
   position: relative;

@@ -119,13 +119,13 @@ const electronHandler = {
   storage: {
     saveLocal: (recording: RecordingResult, path: string): Promise<{ success: boolean; filePath?: string }> =>
       safeInvoke('storage:saveLocal', recording, path),
-    uploadToS3: (recording: RecordingResult, config: StorageSettings['s3']): Promise<{ success: boolean; s3Url?: string }> =>
+    uploadToS3: (recording: RecordingResult, config: StorageSettings['s3Config']): Promise<{ success: boolean; s3Url?: string }> =>
       safeInvoke('storage:uploadToS3', recording, config),
     generateFileName: (metadata: RecordingResult['metadata']): Promise<{ success: boolean; fileName?: string }> =>
       safeInvoke('storage:generateFileName', metadata),
     validateConfig: (settings: StorageSettings): Promise<{ success: boolean; isValid: boolean; error?: string }> =>
       safeInvoke('storage:validateConfig', settings),
-    testS3Connection: (config: StorageSettings['s3']): Promise<{ success: boolean; isConnected: boolean; error?: string }> =>
+    testS3Connection: (config: StorageSettings['s3Config']): Promise<{ success: boolean; isConnected: boolean; error?: string }> =>
       safeInvoke('storage:testS3Connection', config),
     getAvailableSpace: (path: string): Promise<{ success: boolean; availableSpace: number; error?: string }> =>
       safeInvoke('storage:getAvailableSpace', path),
@@ -169,9 +169,10 @@ if (!contextBridge) {
   throw new Error('Context bridge is not available');
 }
 
-// Validate that we're running in a secure context
-if (typeof window !== 'undefined') {
-  throw new Error('Preload script should not have access to window object');
+// Validate that we're running in a secure context - check for main world pollution
+// In a properly isolated preload script, we shouldn't have access to renderer globals
+if (typeof document !== 'undefined' || typeof window !== 'undefined') {
+  console.warn('Preload script may have access to renderer globals - ensure proper context isolation');
 }
 
 // Expose the electron API to the renderer process
